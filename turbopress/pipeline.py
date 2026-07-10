@@ -807,7 +807,7 @@ def compress(cfg: dict | None = None) -> dict:
     log.removeHandler(fh)
     fh.close()
     return {"artifact": str(art_dir), "zip": zip_path, "metrics": m,
-            "bits_per_weight": bpw}
+            "bits_per_weight": bpw, "n_params": n_params}
 
 
 def main(cfg: dict | None = None) -> dict:

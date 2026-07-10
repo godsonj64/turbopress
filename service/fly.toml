@@ -1,0 +1,30 @@
+# Fly.io config for the TurboPress control plane.
+# Deploy from the repo root:
+#   flyctl deploy . --config service/fly.toml --dockerfile service/Dockerfile
+app = "turbopress-control-plane"
+primary_region = "iad"
+
+[build]
+  dockerfile = "service/Dockerfile"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# Non-secret config. Set secrets with `flyctl secrets set` (see service/README.md):
+#   DATABASE_URL, SIGNING_PRIVATE_KEY_B64, WORKER_CALLBACK_SECRET,
+#   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID,
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+[env]
+  RUNNER = "modal"
+  PUBLIC_BASE_URL = "https://turbopress-control-plane.fly.dev"
+  R2_BUCKET = "turbopress-artifacts"
+  MODAL_APP_NAME = "turbopress-worker"
+  MODAL_FUNCTION_NAME = "compress_job"

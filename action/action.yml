@@ -1,0 +1,61 @@
+name: "TurboPress Compress"
+description: "Compress a model with TurboPress and fail the build if fidelity gates are not met."
+branding:
+  icon: "cpu"
+  color: "purple"
+
+inputs:
+  api-key:
+    description: "TurboPress API key (store as a secret)."
+    required: true
+  model:
+    description: "Hugging Face model id or path to compress."
+    required: true
+  targets:
+    description: "Comma-separated bit-width targets, e.g. '4bit,3bit'."
+    required: false
+    default: "4bit"
+  gates:
+    description: "Comma-separated fidelity gates, e.g. 'mean_kl_max=0.10,top1_agreement_min=0.70'."
+    required: false
+    default: ""
+  private:
+    description: "Treat the model as private (billed)."
+    required: false
+    default: "true"
+  api-url:
+    description: "Control-plane base URL."
+    required: false
+    default: "https://api.turbopress.ai"
+  fail-on-gate:
+    description: "Fail the job if any fidelity gate is not met."
+    required: false
+    default: "true"
+  timeout-seconds:
+    description: "Max seconds to wait for the job to finish."
+    required: false
+    default: "3600"
+
+outputs:
+  job-id:
+    description: "The created job id."
+    value: ${{ steps.run.outputs.job-id }}
+  gates-passed:
+    description: "Whether all fidelity gates passed."
+    value: ${{ steps.run.outputs.gates-passed }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: run
+      shell: bash
+      run: python "${{ github.action_path }}/compress.py"
+      env:
+        TP_API_KEY: ${{ inputs.api-key }}
+        TP_MODEL: ${{ inputs.model }}
+        TP_TARGETS: ${{ inputs.targets }}
+        TP_GATES: ${{ inputs.gates }}
+        TP_PRIVATE: ${{ inputs.private }}
+        TP_API_URL: ${{ inputs.api-url }}
+        TP_FAIL_ON_GATE: ${{ inputs.fail-on-gate }}
+        TP_TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}

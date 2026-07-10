@@ -24,6 +24,11 @@ data/eval_text.txt
 .hf_cache/
 *.log
 
+# Hosted service local state
+*.db
+.env
+service/.env
+
 # OS / editor
 .DS_Store
 Thumbs.db

@@ -1,0 +1,14 @@
+# Control-plane runtime dependencies (third-party only).
+# The local `turbopress` package (for turbopress.certificate) is installed
+# separately in the Docker image via `pip install .` from the repo root.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+aiosqlite>=0.19
+pydantic>=2.6
+pydantic-settings>=2.2
+stripe>=9.0
+boto3>=1.34
+pynacl>=1.5
+httpx>=0.27

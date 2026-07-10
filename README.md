@@ -428,6 +428,25 @@ deterministic on a given device. Model sizes are bounded by holding the
 reference and quantized copies together in memory (Qwen3-0.6B fp16 fits an 8 GB
 card comfortably).
 
+## Hosted service (compression as a service)
+
+Beyond the library, the repo contains a hosted MVP so a stranger can pay and
+compress a private model with no human in the loop, and gate CI on measured
+fidelity:
+
+- **[`service/`](service/)** — FastAPI control plane (API-key auth, `/jobs`,
+  signed `/certificates`, Stripe metered billing, R2-presigned artifacts). Runs
+  locally with a GPU-free inline runner: `pytest service/tests`.
+- **[`worker/`](worker/)** — Modal serverless GPU function that runs the real
+  pipeline, uploads artifacts to Cloudflare R2, signs a certificate, and calls
+  the control plane back.
+- **[`action/`](action/)** — the `compress-action` GitHub Action that fails the
+  build when fidelity gates (`mean_kl_max`, `top1_agreement_min`, …) are not met.
+
+Certificates are Ed25519-signed; verify with `turbopress.certificate.verify_certificate`
+(`pip install "turbopress[sign]"`). Architecture and deploy steps are in
+[`service/README.md`](service/README.md) and the [hosted docs](docs/hosted.md).
+
 ## Related work & positioning
 
 TurboPress does not claim a new frontier method; the pipeline shape (rotation →

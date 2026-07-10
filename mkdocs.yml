@@ -25,6 +25,7 @@ nav:
   - Home: index.md
   - Quickstart: quickstart.md
   - CLI: cli.md
+  - Hosted service: hosted.md
   - Certificate format: certificate.md
   - Research: research.md
   - Limitations: limitations.md
