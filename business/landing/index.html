@@ -207,16 +207,18 @@
   <header class="site">
     <div class="brand serif">Turbo<span class="press">Press</span></div>
     <nav class="top">
+      <a href="#start">Install</a>
       <a href="#how">How it works</a>
       <a href="#numbers">Numbers</a>
       <a href="#research">Research</a>
       <a href="#pricing">Pricing</a>
+      <a href="https://github.com/godsonj64/turbopress">GitHub&nbsp;&#8599;</a>
     </nav>
   </header>
 
   <div class="hero">
     <div>
-      <div class="eyebrow">Certified model compression</div>
+      <div class="eyebrow">Certified model compression &middot; open source</div>
       <h1 class="serif">Ship models 5&times; smaller. <em>Prove</em> nothing broke.</h1>
       <p class="sub">
         TurboPress compresses your fine-tuned LLM to 2&ndash;4 bits per weight and
@@ -225,9 +227,14 @@
         Compression stops being a leap of faith and becomes a CI step.
       </p>
       <div class="cta-row">
-        <a class="btn primary" href="mailto:godsonj64@gmail.com?subject=TurboPress%20early%20access">Get early access</a>
-        <a class="btn ghost" href="#how">See the pipeline</a>
+        <a class="btn primary" href="#start">pip install turbopress</a>
+        <a class="btn ghost" href="mailto:godsonj64@gmail.com?subject=TurboPress%20Team%20waitlist">Get hosted access</a>
       </div>
+      <p class="mono" style="margin:18px 0 0;font-size:0.76rem;color:var(--faint)">
+        Live now: Apache-2.0 on <a href="https://pypi.org/project/turbopress/" style="color:var(--muted)">PyPI</a>
+        &middot; <a href="https://github.com/godsonj64/turbopress" style="color:var(--muted)">source</a>
+        &middot; <a href="https://godsonj64.github.io/turbopress/" style="color:var(--muted)">docs</a>
+      </p>
     </div>
 
     <div class="cert mono" aria-label="Example fidelity certificate">
@@ -246,11 +253,35 @@
         <dt>Calibration</dt><dd>2,048 tokens &middot; zero customer data</dd>
       </dl>
       <hr class="rule">
-      <div class="sig">ed25519:9f41…c2ab &middot; reproducible &middot; seed 0</div>
+      <div class="sig">ed25519:9f41…c2ab &middot; turbopress/certificate@1 &middot; reproducible &middot; seed 0</div>
       <div class="seal">Verified<br>KL&nbsp;0.079</div>
     </div>
   </div>
 </div>
+
+<section id="start">
+  <div class="wrap">
+    <h2 class="serif">The engine is open source. Install it now.</h2>
+    <p class="lede">
+      The compression pipeline, the KL/top-1/perplexity validator, and Ed25519
+      signed certificates ship as an Apache-2.0 package. The hosted compression
+      CI &mdash; pay, compress a private model, get a receipt, no human in the loop
+      &mdash; is rolling out to teams.
+    </p>
+    <pre class="shell mono"><span class="c"># compress any Llama / Qwen / Mistral model to 3-bit, with a measured certificate</span>
+pip install <span class="g">"turbopress[llm]"</span>
+turbopress compress Qwen/Qwen3-4B --bits 3
+
+<span class="c"># or just measure the divergence between any two models &mdash; useful even for GGUF/AWQ users</span>
+turbopress validate Qwen/Qwen3-4B ./out/Qwen3-4B-turbopress-3bit
+<span class="g">KL(ref&#8214;cand) 0.29 nats &middot; top-1 0.71 &middot; ppl 29.1 &rarr; 38.6</span></pre>
+    <div class="cta-row" style="margin-top:22px">
+      <a class="btn primary" href="https://pypi.org/project/turbopress/">View on PyPI</a>
+      <a class="btn ghost" href="https://github.com/godsonj64/turbopress">Read the source</a>
+      <a class="btn ghost" href="https://godsonj64.github.io/turbopress/">Documentation</a>
+    </div>
+  </div>
+</section>
 
 <section id="problem">
   <div class="wrap">
@@ -306,12 +337,13 @@
       </div>
     </div>
     <pre class="shell mono"><span class="c"># .github/workflows/release.yml</span>
-- uses: turbopress/compress-action@v1
+- uses: godsonj64/turbopress/action@v1
   with:
+    api-key: ${{ secrets.TURBOPRESS_API_KEY }}
     model: your-org/support-agent-8b
-    targets: "a10g:4bit, edge:2.4bit, gguf:q4"
-    fail-below: "kl=0.10, top1=0.80"
-<span class="g">&#10003; support-agent-8b &rarr; 3 artifacts, all certified. Smallest: 2.9 GB (was 16 GB)</span></pre>
+    targets: "4bit,3bit"
+    gates: "mean_kl_max=0.10,top1_agreement_min=0.80"
+<span class="g">&#10003; support-agent-8b &rarr; 2 certified artifacts &middot; gates: PASS &middot; smallest 2.9 GB (was 16 GB)</span></pre>
   </div>
 </section>
 
@@ -345,7 +377,12 @@
 <section id="research">
   <div class="wrap">
     <h2 class="serif">Built on research we publish, including the failures.</h2>
-    <p class="lede">The pipeline exists because we measured everything &mdash; and kept the results that hurt.</p>
+    <p class="lede">
+      The pipeline exists because we measured everything &mdash; and kept the results
+      that hurt. Read the full write-up:
+      <a href="https://github.com/godsonj64/turbopress/blob/main/paper/turbopress_preprint.pdf" style="color:var(--accent)">the preprint</a>
+      and the <a href="https://github.com/godsonj64/turbopress#readme" style="color:var(--accent)">open results</a>.
+    </p>
     <div class="research">
       <div class="card">
         <h3>The quarter-power rule</h3>
@@ -420,6 +457,11 @@
 <div class="wrap">
   <footer class="site">
     <span>&copy; 2026 TurboPress. Compression you can sign.</span>
-    <span><a href="mailto:godsonj64@gmail.com">godsonj64@gmail.com</a></span>
+    <span>
+      <a href="https://github.com/godsonj64/turbopress">GitHub</a> &middot;
+      <a href="https://pypi.org/project/turbopress/">PyPI</a> &middot;
+      <a href="https://godsonj64.github.io/turbopress/">Docs</a> &middot;
+      <a href="mailto:godsonj64@gmail.com">Contact</a>
+    </span>
   </footer>
 </div>
