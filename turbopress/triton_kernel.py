@@ -32,6 +32,14 @@ __all__ = ["HAS_TRITON", "packed_gemv"]
 
 if HAS_TRITON:
 
+    _CONFIGS = [
+        triton.Config({"BLOCK_N": bn, "BLOCK_D": bd}, num_warps=w)
+        for bn in (32, 64, 128)
+        for bd in (128, 256, 512)
+        for w in (2, 4, 8)
+    ]
+
+    @triton.autotune(configs=_CONFIGS, key=["D", "N"])
     @triton.jit
     def _tcq_gemv(
         z_ptr,          # [D]  activation row (already rotated/equilibrated)
@@ -49,6 +57,9 @@ if HAS_TRITON:
         BLOCK_D: tl.constexpr,
     ):
         pid = tl.program_id(0)
+        pid_b = tl.program_id(1)  # batch row: one launch covers the batch
+        z_ptr = z_ptr + pid_b * D
+        y_ptr = y_ptr + pid_b * N
         rn = pid * BLOCK_N + tl.arange(0, BLOCK_N)
         n_mask = rn < N
         acc = tl.zeros((BLOCK_N,), dtype=tl.float32)
@@ -114,12 +125,11 @@ def packed_gemv(z: Tensor, layer) -> Tensor:
     n, d = layer.out_features, layer.in_features
     m = layer.n_states.bit_length() - 1
     out = torch.empty(flat.shape[0], n, dtype=torch.float32, device=z.device)
-    grid = ((n + 127) // 128,)
-    for b in range(flat.shape[0]):
-        _tcq_gemv[grid](
-            flat[b], layer.path_packed, layer.member_packed,
-            layer.scales, layer.codebook, layer.lut, out[b],
-            d, n, layer.path_packed.shape[1], layer.member_packed.shape[1],
-            M=m, MEMBER_W=layer.bits - 1, BLOCK_N=128, BLOCK_D=256,
-        )
+    grid = lambda meta: ((n + meta["BLOCK_N"] - 1) // meta["BLOCK_N"], flat.shape[0])  # noqa: E731
+    _tcq_gemv[grid](
+        flat, layer.path_packed, layer.member_packed,
+        layer.scales, layer.codebook, layer.lut, out,
+        d, n, layer.path_packed.shape[1], layer.member_packed.shape[1],
+        M=m, MEMBER_W=layer.bits - 1,
+    )
     return out.reshape(*z.shape[:-1], n).to(z.dtype)
