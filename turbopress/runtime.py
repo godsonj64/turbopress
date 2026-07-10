@@ -247,10 +247,26 @@ class PackedTCQLinear(nn.Module):
         )
         self.register_buffer("_w_cache", None)
 
+        self.register_buffer("levels_packed", None)
         if mode == "triton":
             from turbopress.triton_kernel import HAS_TRITON
             if not HAS_TRITON:
                 raise RuntimeError("mode='triton' requires the triton package")
+            # Build the GPU decode stream once: window-decode to level codes
+            # packed at (bits+1) bits/weight (nibble-aligned for 3-bit), so
+            # the kernel does one aligned field extract + one small codebook
+            # gather per weight -- no window math or LUT in the hot loop.
+            # Runtime memory is (bits+1)/16 of fp16; disk stays at true rate.
+            d = self.in_features
+            pathb = unpack_le(self.path_packed, d, 1)
+            if self.member_packed is not None:
+                memb = unpack_le(self.member_packed, d, self.bits - 1)
+            else:
+                memb = torch.zeros_like(pathb)
+            levels = window_decode_levels(pathb, memb, self._trellis)
+            self.levels_packed = pack_le(levels, self.bits + 1)
+            for name in ("path_packed", "member_packed", "lut"):
+                setattr(self, name, None)
         elif mode == "cached":
             # Load-time decompression: decode once, rotate the weights back
             # to the original basis (W = W' R D^-1 row-wise), free the packed
@@ -311,6 +327,9 @@ class PackedTCQLinear(nn.Module):
         """
         if self._w_cache is not None:
             total = self._w_cache.numel() * self._w_cache.element_size()
+        elif self.levels_packed is not None:  # triton decode stream
+            total = self.levels_packed.numel() + self.signs_packed.numel()
+            total += 2 * (self.inv_equil.numel() + self.rot_scale.numel())
         else:
             total = self.path_packed.numel() + self.signs_packed.numel()
             if self.member_packed is not None:
