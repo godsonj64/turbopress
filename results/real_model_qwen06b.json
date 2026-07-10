@@ -1,0 +1,116 @@
+{
+  "settings": {
+    "model": "Qwen/Qwen3-0.6B",
+    "seqs": 16,
+    "calib_seqs": 8,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/real_model_qwen06b.json",
+    "data_dir": "data",
+    "device": "cuda",
+    "dtype": "float16"
+  },
+  "ppl_fp": 29.105678,
+  "results": [
+    {
+      "label": "nearest 2b",
+      "bits_per_weight": 2.0125,
+      "n_replaced": 196,
+      "mean_kl": 10.282238,
+      "top1_agreement": 0.020343,
+      "ppl_fp": 29.105678,
+      "ppl_q": 564874.260026,
+      "n_tokens": 4080,
+      "seconds": 4.6
+    },
+    {
+      "label": "nearest 3b",
+      "bits_per_weight": 3.0126,
+      "n_replaced": 196,
+      "mean_kl": 1.640566,
+      "top1_agreement": 0.380882,
+      "ppl_fp": 29.105678,
+      "ppl_q": 138.658907,
+      "n_tokens": 4080,
+      "seconds": 4.4
+    },
+    {
+      "label": "nearest 4b",
+      "bits_per_weight": 4.0126,
+      "n_replaced": 196,
+      "mean_kl": 0.399057,
+      "top1_agreement": 0.670343,
+      "ppl_fp": 29.105678,
+      "ppl_q": 43.91114,
+      "n_tokens": 4080,
+      "seconds": 4.0
+    },
+    {
+      "label": "tcq 2b S=64 +eq",
+      "bits_per_weight": 2.023,
+      "n_replaced": 196,
+      "mean_kl": 1.215165,
+      "top1_agreement": 0.450245,
+      "ppl_fp": 29.105678,
+      "ppl_q": 91.420591,
+      "n_tokens": 4080,
+      "seconds": 245.9
+    },
+    {
+      "label": "tcq 3b S=64 +eq",
+      "bits_per_weight": 3.023,
+      "n_replaced": 196,
+      "mean_kl": 0.288551,
+      "top1_agreement": 0.709804,
+      "ppl_fp": 29.105678,
+      "ppl_q": 38.580864,
+      "n_tokens": 4080,
+      "seconds": 245.2
+    },
+    {
+      "label": "tcq 4b S=64 +eq",
+      "bits_per_weight": 4.0231,
+      "n_replaced": 196,
+      "mean_kl": 0.078991,
+      "top1_agreement": 0.842892,
+      "ppl_fp": 29.105678,
+      "ppl_q": 30.632934,
+      "n_tokens": 4080,
+      "seconds": 247.8
+    },
+    {
+      "label": "gptq 2b +eq",
+      "bits_per_weight": 2.0229,
+      "n_replaced": 196,
+      "mean_kl": 2.071709,
+      "top1_agreement": 0.383333,
+      "ppl_fp": 29.105678,
+      "ppl_q": 177.097298,
+      "n_tokens": 4080,
+      "seconds": 79.0
+    },
+    {
+      "label": "gptq 3b +eq",
+      "bits_per_weight": 3.023,
+      "n_replaced": 196,
+      "mean_kl": 0.311975,
+      "top1_agreement": 0.707353,
+      "ppl_fp": 29.105678,
+      "ppl_q": 36.281685,
+      "n_tokens": 4080,
+      "seconds": 88.8
+    },
+    {
+      "label": "gptq 4b +eq",
+      "bits_per_weight": 4.023,
+      "n_replaced": 196,
+      "mean_kl": 0.095489,
+      "top1_agreement": 0.843873,
+      "ppl_fp": 29.105678,
+      "ppl_q": 30.451578,
+      "n_tokens": 4080,
+      "seconds": 77.2
+    }
+  ]
+}

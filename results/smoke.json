@@ -1,0 +1,283 @@
+{
+  "settings": {
+    "quick": true,
+    "seed": 0,
+    "single_layer": {
+      "dim": 256,
+      "n_out": 256,
+      "batch": 128,
+      "n_trials": 8
+    },
+    "compounding": {
+      "depth": 8,
+      "dim": 128,
+      "batch": 64,
+      "vocab": 64,
+      "checkpoints": [
+        1,
+        2,
+        4,
+        8
+      ]
+    }
+  },
+  "results": {
+    "single_layer": [
+      {
+        "label": "nearest 4b (anchor)",
+        "act_mode": "isotropic",
+        "eff_bits": 4.0625,
+        "rel_rmse": 0.0948694497346878,
+        "rel_bias": 0.09486943483352661,
+        "n_trials": 1
+      },
+      {
+        "label": "nearest 3b",
+        "act_mode": "isotropic",
+        "eff_bits": 3.0625,
+        "rel_rmse": 0.18322229385375977,
+        "rel_bias": 0.18322224915027618,
+        "n_trials": 1
+      },
+      {
+        "label": "nearest 2b",
+        "act_mode": "isotropic",
+        "eff_bits": 2.0625,
+        "rel_rmse": 0.3424667418003082,
+        "rel_bias": 0.3424667418003082,
+        "n_trials": 1
+      },
+      {
+        "label": "stochastic 2b",
+        "act_mode": "isotropic",
+        "eff_bits": 2.0625,
+        "rel_rmse": 0.43501582741737366,
+        "rel_bias": 0.24859966337680817,
+        "n_trials": 8
+      },
+      {
+        "label": "2b + QJL k=d/8",
+        "act_mode": "isotropic",
+        "eff_bits": 2.25,
+        "rel_rmse": 1.210706353187561,
+        "rel_bias": 0.4272657334804535,
+        "n_trials": 8
+      },
+      {
+        "label": "2b + QJL k=d (=3b)",
+        "act_mode": "isotropic",
+        "eff_bits": 3.125,
+        "rel_rmse": 0.42758768796920776,
+        "rel_bias": 0.15051983296871185,
+        "n_trials": 8
+      },
+      {
+        "label": "nearest 4b (anchor)",
+        "act_mode": "aniso",
+        "eff_bits": 4.0625,
+        "rel_rmse": 0.09251228719949722,
+        "rel_bias": 0.09251231700181961,
+        "n_trials": 1
+      },
+      {
+        "label": "nearest 3b",
+        "act_mode": "aniso",
+        "eff_bits": 3.0625,
+        "rel_rmse": 0.17908875644207,
+        "rel_bias": 0.1790887415409088,
+        "n_trials": 1
+      },
+      {
+        "label": "nearest 2b",
+        "act_mode": "aniso",
+        "eff_bits": 2.0625,
+        "rel_rmse": 0.331306129693985,
+        "rel_bias": 0.3313060998916626,
+        "n_trials": 1
+      },
+      {
+        "label": "stochastic 2b",
+        "act_mode": "aniso",
+        "eff_bits": 2.0625,
+        "rel_rmse": 0.4173836410045624,
+        "rel_bias": 0.24446658790111542,
+        "n_trials": 8
+      },
+      {
+        "label": "2b + QJL k=d/8",
+        "act_mode": "aniso",
+        "eff_bits": 2.25,
+        "rel_rmse": 1.1535557508468628,
+        "rel_bias": 0.40659260749816895,
+        "n_trials": 8
+      },
+      {
+        "label": "2b + QJL k=d (=3b)",
+        "act_mode": "aniso",
+        "eff_bits": 3.125,
+        "rel_rmse": 0.40564030408859253,
+        "rel_bias": 0.1417372077703476,
+        "n_trials": 8
+      }
+    ],
+    "compounding": [
+      {
+        "label": "nearest 4b (anchor)",
+        "act_mode": "isotropic",
+        "eff_bits": 4.125,
+        "depth_rel_err": {
+          "1": 0.09411890804767609,
+          "2": 0.13804323971271515,
+          "4": 0.1669931560754776,
+          "8": 0.23392511904239655
+        },
+        "final_kl": 0.022919023409485817,
+        "top1_agreement": 0.78125
+      },
+      {
+        "label": "nearest 3b",
+        "act_mode": "isotropic",
+        "eff_bits": 3.125,
+        "depth_rel_err": {
+          "1": 0.17877762019634247,
+          "2": 0.26199865341186523,
+          "4": 0.3210977017879486,
+          "8": 0.4461989104747772
+        },
+        "final_kl": 0.10240325331687927,
+        "top1_agreement": 0.578125
+      },
+      {
+        "label": "nearest 2b",
+        "act_mode": "isotropic",
+        "eff_bits": 2.125,
+        "depth_rel_err": {
+          "1": 0.3324836790561676,
+          "2": 0.45534247159957886,
+          "4": 0.5564215779304504,
+          "8": 0.6482152342796326
+        },
+        "final_kl": 0.19151011109352112,
+        "top1_agreement": 0.59375
+      },
+      {
+        "label": "stochastic 2b",
+        "act_mode": "isotropic",
+        "eff_bits": 2.125,
+        "depth_rel_err": {
+          "1": 0.41644415259361267,
+          "2": 0.558935284614563,
+          "4": 0.6548335552215576,
+          "8": 0.669370174407959
+        },
+        "final_kl": 0.30428579449653625,
+        "top1_agreement": 0.015625
+      },
+      {
+        "label": "2b + QJL k=d/8",
+        "act_mode": "isotropic",
+        "eff_bits": 2.375,
+        "depth_rel_err": {
+          "1": 1.128880500793457,
+          "2": 2.2311904430389404,
+          "4": 5.36570405960083,
+          "8": 21.313377380371094
+        },
+        "final_kl": 46.99105453491211,
+        "top1_agreement": 0.125
+      },
+      {
+        "label": "2b + QJL k=d (=3b)",
+        "act_mode": "isotropic",
+        "eff_bits": 3.25,
+        "depth_rel_err": {
+          "1": 0.4158994257450104,
+          "2": 0.614001452922821,
+          "4": 0.7533923983573914,
+          "8": 1.0610809326171875
+        },
+        "final_kl": 0.6064128279685974,
+        "top1_agreement": 0.046875
+      },
+      {
+        "label": "nearest 4b (anchor)",
+        "act_mode": "aniso",
+        "eff_bits": 4.125,
+        "depth_rel_err": {
+          "1": 0.09007133543491364,
+          "2": 0.1254895031452179,
+          "4": 0.16545143723487854,
+          "8": 0.23105765879154205
+        },
+        "final_kl": 0.028499016538262367,
+        "top1_agreement": 0.796875
+      },
+      {
+        "label": "nearest 3b",
+        "act_mode": "aniso",
+        "eff_bits": 3.125,
+        "depth_rel_err": {
+          "1": 0.16528309881687164,
+          "2": 0.23493777215480804,
+          "4": 0.3127543032169342,
+          "8": 0.42973554134368896
+        },
+        "final_kl": 0.10482826828956604,
+        "top1_agreement": 0.65625
+      },
+      {
+        "label": "nearest 2b",
+        "act_mode": "aniso",
+        "eff_bits": 2.125,
+        "depth_rel_err": {
+          "1": 0.3157334625720978,
+          "2": 0.4246506989002228,
+          "4": 0.5375823974609375,
+          "8": 0.6508293151855469
+        },
+        "final_kl": 0.22727486491203308,
+        "top1_agreement": 0.65625
+      },
+      {
+        "label": "stochastic 2b",
+        "act_mode": "aniso",
+        "eff_bits": 2.125,
+        "depth_rel_err": {
+          "1": 0.3721686005592346,
+          "2": 0.5419623851776123,
+          "4": 0.6415222883224487,
+          "8": 0.672417163848877
+        },
+        "final_kl": 0.3454044759273529,
+        "top1_agreement": 0.03125
+      },
+      {
+        "label": "2b + QJL k=d/8",
+        "act_mode": "aniso",
+        "eff_bits": 2.375,
+        "depth_rel_err": {
+          "1": 1.1082345247268677,
+          "2": 2.296274423599243,
+          "4": 5.866070747375488,
+          "8": 22.452245712280273
+        },
+        "final_kl": 55.51411819458008,
+        "top1_agreement": 0.015625
+      },
+      {
+        "label": "2b + QJL k=d (=3b)",
+        "act_mode": "aniso",
+        "eff_bits": 3.25,
+        "depth_rel_err": {
+          "1": 0.3709794580936432,
+          "2": 0.5911086201667786,
+          "4": 0.8277578949928284,
+          "8": 1.1247150897979736
+        },
+        "final_kl": 0.8139641880989075,
+        "top1_agreement": 0.0
+      }
+    ]
+  },
+  "elapsed_seconds": 0.33
+}

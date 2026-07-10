@@ -1,0 +1,91 @@
+{
+  "settings": {
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "seqs": 16,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/real_model_tcq.json",
+    "data_dir": "data"
+  },
+  "ppl_fp": 14.062996,
+  "results": [
+    {
+      "label": "nearest 4b",
+      "bits_per_weight": 4.0239,
+      "n_replaced": 210,
+      "mean_kl": 0.399971,
+      "top1_agreement": 0.666667,
+      "ppl_fp": 14.062996,
+      "ppl_q": 20.529761,
+      "n_tokens": 4080,
+      "seconds": 12.6
+    },
+    {
+      "label": "tcq 4b S=8",
+      "bits_per_weight": 4.0245,
+      "n_replaced": 210,
+      "mean_kl": 0.316357,
+      "top1_agreement": 0.710294,
+      "ppl_fp": 14.062996,
+      "ppl_q": 18.862636,
+      "n_tokens": 4080,
+      "seconds": 91.5
+    },
+    {
+      "label": "nearest 3b",
+      "bits_per_weight": 3.0237,
+      "n_replaced": 210,
+      "mean_kl": 1.646536,
+      "top1_agreement": 0.380637,
+      "ppl_fp": 14.062996,
+      "ppl_q": 74.563591,
+      "n_tokens": 4080,
+      "seconds": 10.2
+    },
+    {
+      "label": "tcq 3b S=8",
+      "bits_per_weight": 3.0239,
+      "n_replaced": 210,
+      "mean_kl": 1.431801,
+      "top1_agreement": 0.423039,
+      "ppl_fp": 14.062996,
+      "ppl_q": 63.848834,
+      "n_tokens": 4080,
+      "seconds": 91.6
+    },
+    {
+      "label": "nearest 2b",
+      "bits_per_weight": 2.0236,
+      "n_replaced": 210,
+      "mean_kl": 9.188144,
+      "top1_agreement": 0.011275,
+      "ppl_fp": 14.062996,
+      "ppl_q": 145393.011888,
+      "n_tokens": 4080,
+      "seconds": 10.0
+    },
+    {
+      "label": "tcq 2b S=8",
+      "bits_per_weight": 2.0237,
+      "n_replaced": 210,
+      "mean_kl": 7.770435,
+      "top1_agreement": 0.028186,
+      "ppl_fp": 14.062996,
+      "ppl_q": 34602.293173,
+      "n_tokens": 4080,
+      "seconds": 91.2
+    },
+    {
+      "label": "tcq 2b S=64",
+      "bits_per_weight": 2.0237,
+      "n_replaced": 210,
+      "mean_kl": 5.743549,
+      "top1_agreement": 0.075,
+      "ppl_fp": 14.062996,
+      "ppl_q": 5471.148276,
+      "n_tokens": 4080,
+      "seconds": 130.4
+    }
+  ]
+}

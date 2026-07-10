@@ -1,0 +1,92 @@
+{
+  "settings": {
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "seqs": 16,
+    "calib_seqs": 8,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/real_model_v2.json",
+    "data_dir": "data"
+  },
+  "ppl_fp": 14.062996,
+  "results": [
+    {
+      "label": "nearest 3b",
+      "bits_per_weight": 3.0237,
+      "n_replaced": 210,
+      "mean_kl": 1.646536,
+      "top1_agreement": 0.380637,
+      "ppl_fp": 14.062996,
+      "ppl_q": 74.563591,
+      "n_tokens": 4080,
+      "seconds": 11.6
+    },
+    {
+      "label": "tcq 3b S=64",
+      "bits_per_weight": 3.0239,
+      "n_replaced": 210,
+      "mean_kl": 1.048031,
+      "top1_agreement": 0.471324,
+      "ppl_fp": 14.062996,
+      "ppl_q": 39.361044,
+      "n_tokens": 4080,
+      "seconds": 132.9
+    },
+    {
+      "label": "tcq 3b S=64 +eq",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.319338,
+      "top1_agreement": 0.69951,
+      "ppl_fp": 14.062996,
+      "ppl_q": 18.491482,
+      "n_tokens": 4080,
+      "seconds": 125.4
+    },
+    {
+      "label": "nearest 2b",
+      "bits_per_weight": 2.0236,
+      "n_replaced": 210,
+      "mean_kl": 9.188144,
+      "top1_agreement": 0.011275,
+      "ppl_fp": 14.062996,
+      "ppl_q": 145393.011888,
+      "n_tokens": 4080,
+      "seconds": 10.9
+    },
+    {
+      "label": "tcq 2b S=64",
+      "bits_per_weight": 2.0237,
+      "n_replaced": 210,
+      "mean_kl": 7.321832,
+      "top1_agreement": 0.032353,
+      "ppl_fp": 14.062996,
+      "ppl_q": 24292.725555,
+      "n_tokens": 4080,
+      "seconds": 129.6
+    },
+    {
+      "label": "tcq 2b S=64 +eq",
+      "bits_per_weight": 2.0463,
+      "n_replaced": 210,
+      "mean_kl": 2.051888,
+      "top1_agreement": 0.32549,
+      "ppl_fp": 14.062996,
+      "ppl_q": 116.100997,
+      "n_tokens": 4080,
+      "seconds": 128.7
+    },
+    {
+      "label": "tcq 4b S=64 +eq",
+      "bits_per_weight": 4.047,
+      "n_replaced": 210,
+      "mean_kl": 0.078712,
+      "top1_agreement": 0.844363,
+      "ppl_fp": 14.062996,
+      "ppl_q": 15.198362,
+      "n_tokens": 4080,
+      "seconds": 133.6
+    }
+  ]
+}

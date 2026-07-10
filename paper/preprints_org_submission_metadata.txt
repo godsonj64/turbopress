@@ -1,0 +1,32 @@
+PREPRINTS.ORG SUBMISSION — copy/paste metadata
+================================================
+Manuscript file to upload: paper/turbopress_preprint.pdf
+
+--- TITLE ---------------------------------------------------------------
+TurboPress: A Measurement-Driven Study of Rotated Low-Bit Weight Quantization — Equilibration Exponents, Error Feedback, and Per-Layer Bit Allocation
+
+--- AUTHOR --------------------------------------------------------------
+Godson Johnson
+Email: godsonj64@gmail.com
+Affiliation: Independent Researcher            [change if you have one]
+
+--- SUBJECT AREA --------------------------------------------------------
+Section: Computer Science and Mathematics
+Subject: Artificial Intelligence and Machine Learning
+
+--- KEYWORDS (comma-separated) ------------------------------------------
+large language models; post-training quantization; model compression; weight quantization; incoherence processing; trellis-coded quantization; GPTQ; error feedback; mixed-precision; LLM efficiency
+
+--- ABSTRACT (plain text) ----------------------------------------------
+We present TurboPress, an instrumented post-training quantization (PTQ) pipeline for large language model (LLM) weights, together with a set of controlled A/B measurements that isolate the contribution of each design choice at exactly matched bit budgets. Building on the incoherence-processing line of work (QuIP, QuIP#, QTIP, QuaRot) and on the rotation-plus-optimal-quantizer construction of TurboQuant, TurboPress combines a seeded randomized orthogonal rotation, trellis-coded quantization (TCQ) with data-free trellis-optimized codebooks, GPTQ/LDLQ error feedback, and per-layer bit allocation. Our contributions are primarily empirical and analytical rather than a claim of a new state of the art. First, we derive a corrected rotation-aware equilibration exponent: in the weight-only, post-rotation regime the optimal per-channel fold is a quarter power, s_j = (E[x_j^2] / ||W_col_j||^2)^(1/4), which is distinct from the square-root heuristic of AWQ/SmoothQuant and from the weight–activation balancing result of BASE-Q. Second, we report a rigorous negative result: unbiased (QJL-style) residual correction, though provably debiasing, loses to a finer deterministic quantizer at equal bit budget for weights, because the correction's variance exceeds the bias it removes. Third, in an end-to-end evaluation on Qwen3-0.6B we show that error feedback and trellis coding are complementary — trellis coding wins at 2 bits, while both are near-lossless at 4 bits — and that mixed precision allocated by measured KL sensitivity beats uniform precision at an equal 3.0-bit budget. All results use a KL-divergence "visible-loss" metric with exact storage accounting, and the code, configurations, and raw result logs are released. We deliberately quantify the scale (<= 0.6B parameters) and baseline gaps that separate these measurements from a state-of-the-art claim.
+
+--- ONE-SENTENCE SUMMARY (if the form asks) -----------------------------
+A controlled, matched-bit-budget study of rotated low-bit LLM weight quantization that derives a corrected quarter-power equilibration rule, reports that unbiased QJL residual correction is counter-productive for weights, and shows error feedback and trellis coding are complementary with KL-driven mixed precision winning at equal budget.
+
+--- COMMENTS / NOTES (if the form has a field) --------------------------
+11 pages, 7 figures, 3 tables. Empirical/analytical study; no state-of-the-art claim. Evidence at <= 0.6B parameters (Qwen3-0.6B, SmolLM2-135M); standard WikiText-2 / zero-shot baseline comparisons against released GPTQ/AWQ/QuIP#/QTIP checkpoints are noted as future work. Code, unit tests, and result logs released.
+
+--- SUGGESTED DECLARATIONS ---------------------------------------------
+Funding: None / self-funded.
+Conflicts of interest: None.
+Data availability: Models (Qwen3-0.6B, SmolLM2-135M) and the evaluation corpus are public; code and result logs are released.

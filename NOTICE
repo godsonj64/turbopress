@@ -1,0 +1,16 @@
+TurboPress
+Copyright 2026 The TurboPress authors
+
+This product includes software developed by the TurboPress authors.
+
+The quantization pipeline builds on the primitives introduced in TurboQuant
+(arXiv:2504.19874): a seeded randomized orthogonal transform, an MSE-optimal
+scalar quantizer, and a Quantized-JL residual sketch. TurboPress adds
+trellis-coded quantization with data-free trellis-optimized codebooks,
+rotation-aware ("quarter-power") activation equilibration, GPTQ/LDLQ error
+feedback, and per-layer bit allocation, together with a measurement harness
+that reports KL, top-1 agreement, and perplexity against the full-precision
+model.
+
+This software is licensed under the Apache License, Version 2.0 (the
+"License"); see the LICENSE file for the full terms.

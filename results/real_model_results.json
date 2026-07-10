@@ -1,0 +1,80 @@
+{
+  "settings": {
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "seqs": 16,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/real_model_results.json",
+    "data_dir": "data"
+  },
+  "ppl_fp": 13.851724,
+  "results": [
+    {
+      "label": "nearest 4b (anchor)",
+      "bits_per_weight": 4.0239,
+      "n_replaced": 210,
+      "mean_kl": 0.430544,
+      "top1_agreement": 0.638971,
+      "ppl_fp": 13.851724,
+      "ppl_q": 21.217118,
+      "n_tokens": 4080,
+      "seconds": 11.8
+    },
+    {
+      "label": "nearest 3b",
+      "bits_per_weight": 3.0237,
+      "n_replaced": 210,
+      "mean_kl": 1.717175,
+      "top1_agreement": 0.363725,
+      "ppl_fp": 13.851724,
+      "ppl_q": 82.899199,
+      "n_tokens": 4080,
+      "seconds": 10.6
+    },
+    {
+      "label": "nearest 2b",
+      "bits_per_weight": 2.0236,
+      "n_replaced": 210,
+      "mean_kl": 9.093605,
+      "top1_agreement": 0.010294,
+      "ppl_fp": 13.851724,
+      "ppl_q": 138335.814088,
+      "n_tokens": 4080,
+      "seconds": 10.1
+    },
+    {
+      "label": "stochastic 2b",
+      "bits_per_weight": 2.0236,
+      "n_replaced": 210,
+      "mean_kl": 11.426828,
+      "top1_agreement": 0.027941,
+      "ppl_fp": 13.851724,
+      "ppl_q": 1454608.078923,
+      "n_tokens": 4080,
+      "seconds": 10.9
+    },
+    {
+      "label": "2b + QJL k=d/8",
+      "bits_per_weight": 2.172,
+      "n_replaced": 210,
+      "mean_kl": 14.443627,
+      "top1_agreement": 0.002941,
+      "ppl_fp": 13.851724,
+      "ppl_q": 29663050.586856,
+      "n_tokens": 4080,
+      "seconds": 11.2
+    },
+    {
+      "label": "2b + QJL k=d (=3b)",
+      "bits_per_weight": 3.047,
+      "n_replaced": 210,
+      "mean_kl": 9.750189,
+      "top1_agreement": 0.018382,
+      "ppl_fp": 13.851724,
+      "ppl_q": 293934.17511,
+      "n_tokens": 4080,
+      "seconds": 16.3
+    }
+  ]
+}

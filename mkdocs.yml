@@ -1,0 +1,36 @@
+site_name: TurboPress
+site_description: Certified low-bit LLM weight quantization
+site_url: https://godsonj64.github.io/turbopress/
+repo_url: https://github.com/godsonj64/turbopress
+repo_name: godsonj64/turbopress
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - CLI: cli.md
+  - Certificate format: certificate.md
+  - Research: research.md
+  - Limitations: limitations.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - tables

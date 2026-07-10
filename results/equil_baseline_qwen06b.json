@@ -1,0 +1,117 @@
+{
+  "settings": {
+    "model": "Qwen/Qwen3-0.6B",
+    "seqs": 16,
+    "calib_seqs": 8,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/equil_baseline_qwen06b.json",
+    "data_dir": "data",
+    "device": "cuda",
+    "dtype": "float16",
+    "config_set": "equil"
+  },
+  "ppl_fp": 29.105678,
+  "results": [
+    {
+      "label": "scalar 2b no-eq",
+      "bits_per_weight": 2.0125,
+      "n_replaced": 196,
+      "mean_kl": 10.282238,
+      "top1_agreement": 0.020343,
+      "ppl_fp": 29.105678,
+      "ppl_q": 564874.260026,
+      "n_tokens": 4080,
+      "seconds": 5.0
+    },
+    {
+      "label": "scalar 2b awq-sqrt",
+      "bits_per_weight": 2.0229,
+      "n_replaced": 196,
+      "mean_kl": 8.410926,
+      "top1_agreement": 0.047304,
+      "ppl_fp": 29.105678,
+      "ppl_q": 84834.116491,
+      "n_tokens": 4080,
+      "seconds": 4.2
+    },
+    {
+      "label": "scalar 2b quarter",
+      "bits_per_weight": 2.0229,
+      "n_replaced": 196,
+      "mean_kl": 2.400855,
+      "top1_agreement": 0.282353,
+      "ppl_fp": 29.105678,
+      "ppl_q": 299.533632,
+      "n_tokens": 4080,
+      "seconds": 4.1
+    },
+    {
+      "label": "scalar 3b no-eq",
+      "bits_per_weight": 3.0126,
+      "n_replaced": 196,
+      "mean_kl": 1.640566,
+      "top1_agreement": 0.380882,
+      "ppl_fp": 29.105678,
+      "ppl_q": 138.658907,
+      "n_tokens": 4080,
+      "seconds": 4.0
+    },
+    {
+      "label": "scalar 3b awq-sqrt",
+      "bits_per_weight": 3.023,
+      "n_replaced": 196,
+      "mean_kl": 1.426986,
+      "top1_agreement": 0.392647,
+      "ppl_fp": 29.105678,
+      "ppl_q": 102.005776,
+      "n_tokens": 4080,
+      "seconds": 4.0
+    },
+    {
+      "label": "scalar 3b quarter",
+      "bits_per_weight": 3.023,
+      "n_replaced": 196,
+      "mean_kl": 0.409013,
+      "top1_agreement": 0.658088,
+      "ppl_fp": 29.105678,
+      "ppl_q": 42.399578,
+      "n_tokens": 4080,
+      "seconds": 4.0
+    },
+    {
+      "label": "scalar 4b no-eq",
+      "bits_per_weight": 4.0126,
+      "n_replaced": 196,
+      "mean_kl": 0.399057,
+      "top1_agreement": 0.670343,
+      "ppl_fp": 29.105678,
+      "ppl_q": 43.91114,
+      "n_tokens": 4080,
+      "seconds": 4.0
+    },
+    {
+      "label": "scalar 4b awq-sqrt",
+      "bits_per_weight": 4.023,
+      "n_replaced": 196,
+      "mean_kl": 0.27964,
+      "top1_agreement": 0.708824,
+      "ppl_fp": 29.105678,
+      "ppl_q": 37.450915,
+      "n_tokens": 4080,
+      "seconds": 3.9
+    },
+    {
+      "label": "scalar 4b quarter",
+      "bits_per_weight": 4.023,
+      "n_replaced": 196,
+      "mean_kl": 0.106861,
+      "top1_agreement": 0.809069,
+      "ppl_fp": 29.105678,
+      "ppl_q": 32.163224,
+      "n_tokens": 4080,
+      "seconds": 3.9
+    }
+  ]
+}

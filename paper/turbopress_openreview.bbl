@@ -1,0 +1,115 @@
+\begin{thebibliography}{15}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Amboage et~al.(2026)Amboage, Monteagudo-Lago, Colbert, Franco, and
+  Fraser]{amboage2026piso}
+Juan Amboage, Pablo Monteagudo-Lago, Ian Colbert, Giuseppe Franco, and Nicholas
+  Fraser.
+\newblock Optimal post-training quantization scales and where to find them.
+\newblock \emph{arXiv preprint arXiv:2606.10890}, 2026.
+
+\bibitem[Ashkboos et~al.(2024)Ashkboos, Mohtashami, Croci, Li, Jaggi, Alistarh,
+  Hoefler, and Hensman]{ashkboos2024quarot}
+Saleh Ashkboos, Amirkeivan Mohtashami, Maximilian~L. Croci, Bo~Li, Martin
+  Jaggi, Dan Alistarh, Torsten Hoefler, and James Hensman.
+\newblock {QuaRot}: Outlier-free 4-bit inference in rotated llms.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2024.
+\newblock arXiv:2404.00456.
+
+\bibitem[Chee et~al.(2023)Chee, Cai, Kuleshov, and De~Sa]{chee2023quip}
+Jerry Chee, Yaohui Cai, Volodymyr Kuleshov, and Christopher De~Sa.
+\newblock {QuIP}: 2-bit quantization of large language models with guarantees.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2023.
+\newblock arXiv:2307.13304.
+
+\bibitem[Frantar et~al.(2023)Frantar, Ashkboos, Hoefler, and
+  Alistarh]{frantar2023gptq}
+Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan Alistarh.
+\newblock {GPTQ}: Accurate post-training quantization for generative
+  pre-trained transformers.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2023.
+\newblock arXiv:2210.17323.
+
+\bibitem[He et~al.(2025)He, Zheng, Sun, Liu, Zhao, Tan, Yang, Du, and
+  Du]{he2025baseq}
+Liulu He, Shenli Zheng, Karwei Sun, Yijiang Liu, Yufei Zhao, Chongkang Tan,
+  Huanrui Yang, Yuan Du, and Li~Du.
+\newblock {BASE-Q}: Bias and asymmetric scaling enhanced rotational
+  quantization for large language models.
+\newblock \emph{arXiv preprint arXiv:2506.15689}, 2025.
+
+\bibitem[{Hugging Face TB}(2025)]{allal2025smollm2}
+{Hugging Face TB}.
+\newblock {SmolLM2}: When smol goes big, 2025.
+\newblock Model: HuggingFaceTB/SmolLM2-135M, Hugging Face Hub.
+
+\bibitem[Lee et~al.(2026)Lee, Chavan, Nguyen, Huang, Jiang, Panda, Mertens, and
+  Shukla]{lee2026orbitquant}
+Donghyun Lee, Jitesh Chavan, Duy Nguyen, Sam Huang, Liming Jiang, Priyadarshini
+  Panda, Timo Mertens, and Saurabh Shukla.
+\newblock {OrbitQuant}: Data-agnostic quantization for image and video
+  diffusion transformers.
+\newblock \emph{arXiv preprint arXiv:2607.02461}, 2026.
+
+\bibitem[Lin et~al.(2024)Lin, Tang, Tang, Yang, Dang, and Han]{lin2024awq}
+Ji~Lin, Jiaming Tang, Haotian Tang, Shang Yang, Xingyu Dang, and Song Han.
+\newblock {AWQ}: Activation-aware weight quantization for on-device llm
+  compression and acceleration.
+\newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}, 2024.
+\newblock arXiv:2306.00978.
+
+\bibitem[Marcellin and Fischer(1990)]{marcellin1990tcq}
+Michael~W. Marcellin and Thomas~R. Fischer.
+\newblock Trellis coded quantization of memoryless and gauss-markov sources.
+\newblock \emph{IEEE Transactions on Communications}, 38\penalty0 (1):\penalty0
+  82--93, 1990.
+
+\bibitem[{Qwen Team}(2025)]{qwen3_2025}
+{Qwen Team}.
+\newblock {Qwen3} technical report, 2025.
+\newblock Model: Qwen/Qwen3-0.6B, Hugging Face Hub.
+
+\bibitem[Sharma and Dobek(2026)]{sharma2026qamw}
+Preetam Sharma and Kacper Dobek.
+\newblock {QAM-W}: Joint 2d codebook quantization for llm weights via hadamard
+  rotation and activation-aware scaling.
+\newblock \emph{arXiv preprint arXiv:2605.26339}, 2026.
+
+\bibitem[Tseng et~al.(2024{\natexlab{a}})Tseng, Chee, Sun, Kuleshov, and
+  De~Sa]{tseng2024quipsharp}
+Albert Tseng, Jerry Chee, Qingyao Sun, Volodymyr Kuleshov, and Christopher
+  De~Sa.
+\newblock {QuIP}\#: Even better llm quantization with hadamard incoherence and
+  lattice codebooks.
+\newblock In \emph{International Conference on Machine Learning (ICML)},
+  2024{\natexlab{a}}.
+\newblock arXiv:2402.04396.
+
+\bibitem[Tseng et~al.(2024{\natexlab{b}})Tseng, Sun, Hou, and
+  De~Sa]{tseng2024qtip}
+Albert Tseng, Qingyao Sun, David Hou, and Christopher De~Sa.
+\newblock {QTIP}: Quantization with trellises and incoherence processing.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2024{\natexlab{b}}.
+\newblock arXiv:2406.11235.
+
+\bibitem[Zandieh et~al.(2024)Zandieh, Daliri, and Han]{zandieh2024qjl}
+Amir Zandieh, Majid Daliri, and Insu Han.
+\newblock {QJL}: 1-bit quantized jl transform for kv cache quantization with
+  zero overhead.
+\newblock \emph{arXiv preprint arXiv:2406.03482}, 2024.
+
+\bibitem[Zhang et~al.(2025)Zhang, Zhang, Colbert, and Saab]{zhang2025qronos}
+Shihao Zhang, Haoyu Zhang, Ian Colbert, and Rayan Saab.
+\newblock {Qronos}: Correcting the past by shaping the future in post-training
+  quantization.
+\newblock \emph{arXiv preprint arXiv:2505.11695}, 2025.
+
+\end{thebibliography}

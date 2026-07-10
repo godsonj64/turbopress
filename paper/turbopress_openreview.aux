@@ -1,0 +1,81 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand*\HyPL@Entry[1]{}
+\citation{chee2023quip,ashkboos2024quarot}
+\citation{tseng2024quipsharp,tseng2024qtip}
+\citation{frantar2023gptq}
+\HyPL@Entry{0<</S/D>>}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Claims and supporting evidence.\relax }}{1}{table.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:claims}{{1}{1}{Claims and supporting evidence.\relax }{table.caption.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Method}{1}{section.2}\protected@file@percent }
+\newlabel{sec:method}{{2}{1}{Method}{section.2}{}}
+\citation{he2025baseq}
+\citation{lin2024awq}
+\citation{sharma2026qamw}
+\citation{marcellin1990tcq,tseng2024qtip}
+\citation{frantar2023gptq,chee2023quip}
+\citation{qwen3_2025}
+\citation{allal2025smollm2}
+\citation{zandieh2024qjl}
+\@writefile{toc}{\contentsline {paragraph}{Equilibration (quarter power).}{2}{section*.2}\protected@file@percent }
+\newlabel{prop:quarter}{{1}{2}{}{proposition.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Quantizers and error feedback.}{2}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Bit allocation.}{2}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Experiments}{2}{section.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Qwen3-0.6B sweep; fp16 perplexity $29.11$. Best per bit in \textbf  {bold}.\relax }}{2}{table.caption.5}\protected@file@percent }
+\newlabel{tab:qwen}{{2}{2}{Qwen3-0.6B sweep; fp16 perplexity $29.11$. Best per bit in \textbf {bold}.\relax }{table.caption.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Error feedback vs.\ trellis.}{2}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Exponent ablation.}{2}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Scale-up.}{2}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Per-layer allocation.}{2}{section*.12}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Rate--distortion on Qwen3-0.6B. Trellis coding and error feedback both dominate nearest rounding and are near-lossless at 4 bits.\relax }}{3}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:rd}{{1}{3}{Rate--distortion on Qwen3-0.6B. Trellis coding and error feedback both dominate nearest rounding and are near-lossless at 4 bits.\relax }{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Equilibration-exponent ablation: identical rotated scalar quantizer, only the per-channel fold differs (log scale, disjoint calibration/eval).\relax }}{3}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:equil}{{2}{3}{Equilibration-exponent ablation: identical rotated scalar quantizer, only the per-channel fold differs (log scale, disjoint calibration/eval).\relax }{figure.caption.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Allocation vs.\ uniform (TCQ+eq). The 3.0-bit row is equal-budget.\relax }}{3}{table.caption.14}\protected@file@percent }
+\newlabel{tab:alloc}{{3}{3}{Allocation vs.\ uniform (TCQ+eq). The 3.0-bit row is equal-budget.\relax }{table.caption.14}{}}
+\citation{tseng2024qtip,tseng2024quipsharp,he2025baseq,sharma2026qamw,lee2026orbitquant,zhang2025qronos,amboage2026piso}
+\citation{he2025baseq,amboage2026piso}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Scale-up 135M$\to $0.6B (TCQ+eq): the aggressive low-bit settings improve most.\relax }}{4}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:scale}{{3}{4}{Scale-up 135M$\to $0.6B (TCQ+eq): the aggressive low-bit settings improve most.\relax }{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Per-layer 2-bit KL sensitivity map ($\qopname  \relax o{log}_{10}$). MLP and value/output projections carry the sensitivity.\relax }}{4}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:map}{{4}{4}{Per-layer 2-bit KL sensitivity map ($\log _{10}$). MLP and value/output projections carry the sensitivity.\relax }{figure.caption.13}{}}
+\newlabel{sec:qjl}{{3}{4}{QJL-for-weights negative result}{section*.15}{}}
+\@writefile{toc}{\contentsline {paragraph}{QJL-for-weights negative result.}{4}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Related Work and Positioning}{4}{section.4}\protected@file@percent }
+\bibstyle{plainnat}
+\bibdata{references}
+\bibcite{amboage2026piso}{{1}{2026}{{Amboage et~al.}}{{Amboage, Monteagudo-Lago, Colbert, Franco, and Fraser}}}
+\bibcite{ashkboos2024quarot}{{2}{2024}{{Ashkboos et~al.}}{{Ashkboos, Mohtashami, Croci, Li, Jaggi, Alistarh, Hoefler, and Hensman}}}
+\bibcite{chee2023quip}{{3}{2023}{{Chee et~al.}}{{Chee, Cai, Kuleshov, and De~Sa}}}
+\bibcite{frantar2023gptq}{{4}{2023}{{Frantar et~al.}}{{Frantar, Ashkboos, Hoefler, and Alistarh}}}
+\bibcite{he2025baseq}{{5}{2025}{{He et~al.}}{{He, Zheng, Sun, Liu, Zhao, Tan, Yang, Du, and Du}}}
+\bibcite{allal2025smollm2}{{6}{2025}{{Hugging Face TB}}{{}}}
+\bibcite{lee2026orbitquant}{{7}{2026}{{Lee et~al.}}{{Lee, Chavan, Nguyen, Huang, Jiang, Panda, Mertens, and Shukla}}}
+\bibcite{lin2024awq}{{8}{2024}{{Lin et~al.}}{{Lin, Tang, Tang, Yang, Dang, and Han}}}
+\bibcite{marcellin1990tcq}{{9}{1990}{{Marcellin and Fischer}}{{}}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusion}{5}{section.5}\protected@file@percent }
+\bibcite{qwen3_2025}{{10}{2025}{{Qwen Team}}{{}}}
+\bibcite{sharma2026qamw}{{11}{2026}{{Sharma and Dobek}}{{}}}
+\bibcite{tseng2024quipsharp}{{12}{2024{}}{{Tseng et~al.}}{{Tseng, Chee, Sun, Kuleshov, and De~Sa}}}
+\bibcite{tseng2024qtip}{{13}{2024{}}{{Tseng et~al.}}{{Tseng, Sun, Hou, and De~Sa}}}
+\bibcite{zandieh2024qjl}{{14}{2024}{{Zandieh et~al.}}{{Zandieh, Daliri, and Han}}}
+\bibcite{zhang2025qronos}{{15}{2025}{{Zhang et~al.}}{{Zhang, Zhang, Colbert, and Saab}}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Paper Checklist}{6}{appendix.A}\protected@file@percent }
+\gdef \@abspage@last{6}

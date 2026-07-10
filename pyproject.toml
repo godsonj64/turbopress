@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turbopress"
+version = "0.3.0"
+description = "Certified low-bit LLM weight quantization: rotation + quarter-power equilibration + trellis-coded quantization, with a KL/top-1/perplexity measurement harness."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "The TurboPress authors" }]
+keywords = [
+    "llm",
+    "quantization",
+    "compression",
+    "post-training-quantization",
+    "trellis-coded-quantization",
+    "gptq",
+    "transformers",
+    "pytorch",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = ["torch>=2.0", "numpy>=1.24"]
+
+[project.optional-dependencies]
+# Everything needed to compress/validate real Hugging Face checkpoints.
+llm = ["transformers>=4.40", "datasets>=2.0", "safetensors>=0.4"]
+# Contributor tooling.
+dev = ["pytest>=7.0", "ruff>=0.4", "build>=1.0", "twine>=5.0"]
+docs = ["mkdocs-material>=9.5", "mkdocs>=1.6"]
+
+[project.urls]
+Homepage = "https://github.com/godsonj64/turbopress"
+Repository = "https://github.com/godsonj64/turbopress"
+Documentation = "https://godsonj64.github.io/turbopress/"
+Paper = "https://github.com/godsonj64/turbopress/blob/main/paper/turbopress_preprint.pdf"
+
+[project.scripts]
+turbopress = "turbopress.cli:main"
+
+[tool.setuptools]
+packages = ["turbopress"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Enforce the rules that catch real defects (pyflakes F, import order I,
+# bugbear B); the science modules deliberately favor terse math (dense one-liners,
+# long expressions, same-length zips), so the stylistic pycodestyle E rules and
+# zip-strict are left off rather than churning validated code.
+select = ["F", "I", "B"]
+ignore = ["B008", "B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"turbopress/__init__.py" = ["F401"]
+# vs_unsloth.py hand-orders imports around a sys.path insert and a transformers
+# gguf workaround (see its noqa markers); don't let the sorter reshuffle them.
+"scripts/vs_unsloth.py" = ["I001", "E402"]
