@@ -19,7 +19,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # name -> submodule that defines it (imported on first access).
 _LAZY = {
@@ -37,6 +37,10 @@ _LAZY = {
     "estimate_inner_products": "turbopress.qjl",
     "RowQuantized": "turbopress.quantizer",
     "quantize_rows": "turbopress.quantizer",
+    "PackedTCQLinear": "turbopress.runtime",
+    "pack_linear": "turbopress.runtime",
+    "pack_model": "turbopress.runtime",
+    "window_decode_levels": "turbopress.runtime",
     "TCQQuantized": "turbopress.trellis",
     "Trellis": "turbopress.trellis",
     "tcq_quantize_rows": "turbopress.trellis",
@@ -64,4 +68,10 @@ if TYPE_CHECKING:  # help type checkers / IDEs resolve the lazy names
     from turbopress.linear import QJLCorrectedLinear
     from turbopress.qjl import QJLSketch, build_qjl_sketch, estimate_inner_products
     from turbopress.quantizer import RowQuantized, quantize_rows
+    from turbopress.runtime import (
+        PackedTCQLinear,
+        pack_linear,
+        pack_model,
+        window_decode_levels,
+    )
     from turbopress.trellis import TCQQuantized, Trellis, tcq_quantize_rows

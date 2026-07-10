@@ -94,6 +94,41 @@ The full pipeline lives in [`turbopress/pipeline.py`](turbopress/pipeline.py)
 and the `turbopress compress` CLI share that one validated code path. Docs:
 `mkdocs serve` (see [`docs/`](docs/)).
 
+## Packed runtime (v0.4): run models *from* the bits
+
+`turbopress/runtime.py` is the runtime analogue of GGUF/llama.cpp for the
+TurboPress format: weights stay trellis-coded in memory and decode on the
+fly, so resident weight memory is ~bits/16 of fp16 — not just the download.
+
+The enabling property: **our shift-register trellis decodes window-parallel.**
+The subset at position `t` is a pure LUT lookup on the path-bit window
+`b[t-m..t]` (the encoder starts in state 0, so the window zero-pads) — no
+sequential trellis walk. This is the property QTIP engineers deliberately
+("bitshift trellis"); here it falls out of the encoder construction, and it
+is enforced by a test that checks window decode against the sequential walk
+bit-for-bit.
+
+```python
+from turbopress import pack_model
+from turbopress.real_model import collect_input_scales
+
+stats = collect_input_scales(model, calib_batches)
+pack_model(model, stats, bits=3, mode="tiled")   # linears now run from packed bits
+```
+
+Three execution modes for `PackedTCQLinear`, measured on SmolLM2-135M
+(3-bit, RTX 5050, greedy generation; all modes: 98% teacher-forced top-1
+agreement with fp16):
+
+| mode | decoder weight memory | tok/s | what it is |
+|---|---:|---:|---|
+| fp16 baseline | 202.5 MiB | 26.4 | — |
+| `cached` | 202.8 MiB (1.0x) | 25.6 | load-time decompression: decode once, fold the rotation into fp16 weights, free the packed streams |
+| `tiled` | **38.9 MiB (5.2x less)** | 2.5 | weights stay packed; row tiles decode per forward (pure PyTorch memory mode) |
+| `triton` | 38.9 MiB (5.2x less) | — | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists; batch-1 GEMV is bandwidth-bound, so the theoretical ceiling is **16/bits x faster** than fp16 (server GPUs; no Triton wheel on this Windows dev box, so it ships kernel-complete but locally untested — the torch paths above are the tested reference) |
+
+Reproduce: `python scripts/bench_runtime.py` -> `results/runtime_bench.json`.
+
 ## Round 3 results (Qwen3-0.6B, GPU, all 196 block linears quantized)
 
 Token-level metrics vs the fp16 model (perplexity **29.11**) on 4,096 tokens of

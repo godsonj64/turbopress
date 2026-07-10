@@ -1,0 +1,27 @@
+{
+  "settings": {
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "bits": 3,
+    "n_states": 16,
+    "device": "cuda",
+    "new_tokens": 128
+  },
+  "results": {
+    "fp16": {
+      "weight_mib": 202.5,
+      "tok_s": 26.40110401836346
+    },
+    "packed-cached": {
+      "weight_mib": 202.80303955078125,
+      "tok_s": 25.565290045572873,
+      "teacher_forced_top1_vs_fp16": 0.98046875,
+      "compression_vs_fp16": 0.998505744531973
+    },
+    "packed-tiled": {
+      "weight_mib": 38.860931396484375,
+      "tok_s": 2.4820525120550654,
+      "teacher_forced_top1_vs_fp16": 0.9765625,
+      "compression_vs_fp16": 5.210889001448883
+    }
+  }
+}
