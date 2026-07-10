@@ -44,27 +44,29 @@ if HAS_TRITON:
         scales_ptr,    # [N] fp16 per-row scales
         cb_ptr,        # [2**W] fp16 codebook
         y_ptr,         # [B, N] fp32 output
-        D, N, LV_BYTES,
+        B, D, N, LV_BYTES,
         W: tl.constexpr,       # bits + 1 (level-code width)
         BLOCK_N: tl.constexpr,
         BLOCK_D: tl.constexpr,
     ):
         pid = tl.program_id(0)
         pid_b = tl.program_id(1)
-        z_ptr = z_ptr + pid_b * D
-        y_ptr = y_ptr + pid_b * N
         rn = pid * BLOCK_N + tl.arange(0, BLOCK_N)
+        rb = pid_b * 16 + tl.arange(0, 16)  # batch tile: tl.dot needs >=16
         n_mask = rn < N
-        acc = tl.zeros((BLOCK_N,), dtype=tl.float32)
-        scales = tl.load(scales_ptr + rn, mask=n_mask, other=0.0).to(tl.float32)
+        b_mask = rb < B
+        acc = tl.zeros((BLOCK_N, 16), dtype=tl.float32)
+        scales = tl.load(scales_ptr + rn, mask=n_mask, other=0.0).to(tl.float16)
 
         for d0 in range(0, D, BLOCK_D):
             rc = d0 + tl.arange(0, BLOCK_D)
             d_mask = rc < D
-            zv = tl.load(z_ptr + rc, mask=d_mask, other=0.0).to(tl.float32)
-            # (bits+1)-bit field at stream position rc*W: two bytes always
-            # cover it (W <= 8, shift <= 7). For W = 4 (3-bit models) the
-            # field is nibble-aligned and the second byte load hits cache.
+            # activations tile [BLOCK_D, 16]
+            zv = tl.load(z_ptr + rb[None, :] * D + rc[:, None],
+                         mask=d_mask[:, None] & b_mask[None, :], other=0.0)
+            # decode the weight tile [BLOCK_N, BLOCK_D]: one aligned field
+            # extract + one small codebook gather per weight. For W = 4
+            # (3-bit models) the field is nibble-aligned.
             start = rc * W
             byte0 = start >> 3
             shift = start & 7
@@ -75,10 +77,13 @@ if HAS_TRITON:
                            mask=n_mask[:, None] & (byte0[None, :] + 1 < LV_BYTES),
                            other=0).to(tl.int32)
             level = ((b_lo | (b_hi << 8)) >> shift[None, :]) & ((1 << W) - 1)
-            w = tl.load(cb_ptr + level).to(tl.float32) * scales[:, None]
-            acc += tl.sum(tl.where(mm, w * zv[None, :], 0.0), axis=1)
+            w = tl.load(cb_ptr + level) * scales[:, None]
+            w = tl.where(mm, w, 0.0).to(tl.float16)
+            # tensor-core matmul: [BLOCK_N, BLOCK_D] @ [BLOCK_D, 16]
+            acc = tl.dot(w, zv.to(tl.float16), acc)
 
-        tl.store(y_ptr + rn, acc, mask=n_mask)
+        y_offs = rb[None, :] * N + rn[:, None]
+        tl.store(y_ptr + y_offs, acc, mask=n_mask[:, None] & b_mask[None, :])
 
 
 def packed_gemv(z: Tensor, layer) -> Tensor:
@@ -90,10 +95,11 @@ def packed_gemv(z: Tensor, layer) -> Tensor:
     flat = z.reshape(-1, layer.in_features).contiguous()
     n, d = layer.out_features, layer.in_features
     out = torch.empty(flat.shape[0], n, dtype=torch.float32, device=z.device)
-    grid = lambda meta: ((n + meta["BLOCK_N"] - 1) // meta["BLOCK_N"], flat.shape[0])  # noqa: E731
+    grid = lambda meta: ((n + meta["BLOCK_N"] - 1) // meta["BLOCK_N"],  # noqa: E731
+                         (flat.shape[0] + 15) // 16)
     _tcq_gemv[grid](
         flat, layer.levels_packed, layer.scales, layer.codebook, out,
-        d, n, layer.levels_packed.shape[1],
+        flat.shape[0], d, n, layer.levels_packed.shape[1],
         W=layer.bits + 1,
     )
     return out.reshape(*z.shape[:-1], n).to(z.dtype)
