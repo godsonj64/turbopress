@@ -593,6 +593,26 @@ if __name__ == "__main__":
 
 
 # ----------------------------------------------------------------------------
+# artifact helpers
+# ----------------------------------------------------------------------------
+def extra_state(model, quant_keys) -> dict[str, Tensor]:
+    """Non-quantized tensors to store alongside the packed codes.
+
+    With ``tie_word_embeddings`` the state dict exposes the shared embedding
+    under both ``model.embed_tokens.weight`` and ``lm_head.weight``; saving the
+    per-key CPU copies would store it twice, so the ``lm_head.weight`` alias is
+    dropped (the loader's ``from_config`` re-ties it before ``load_state_dict``).
+    """
+    tied = getattr(model.config, "tie_word_embeddings", False)
+    extra = {}
+    for k, v in model.state_dict().items():
+        if k in quant_keys or (tied and k == "lm_head.weight"):
+            continue
+        extra[k] = v.to(torch.float16).cpu() if v.is_floating_point() else v.cpu()
+    return extra
+
+
+# ----------------------------------------------------------------------------
 # main flow
 # ----------------------------------------------------------------------------
 def compress(cfg: dict | None = None) -> dict:
@@ -729,11 +749,7 @@ def compress(cfg: dict | None = None) -> dict:
 
     # -- artifact ----------------------------------------------------------------
     log.info("writing artifact...")
-    extra = {}
-    for k, v in model.state_dict().items():
-        if k in quant_keys:
-            continue
-        extra[k] = v.to(torch.float16).cpu() if v.is_floating_point() else v.cpu()
+    extra = extra_state(model, quant_keys)
     meta = {
         "format_version": 1,
         "pipeline": "rotate -> quarter-power equilibration -> TCQ (analytic codebook)",
