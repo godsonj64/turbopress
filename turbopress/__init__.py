@@ -1,4 +1,4 @@
-﻿"""turbopress: bias-free low-bit weight quantization for linear layers.
+"""turbopress: bias-free low-bit weight quantization for linear layers.
 
 Implements "stage 4" of the TurboPress proposal: an MSE-optimal scalar
 quantizer applied after a seeded randomized orthogonal transform, plus a
