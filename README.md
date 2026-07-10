@@ -30,9 +30,9 @@ Two development rounds, both driven by measurement:
 **TurboPress: A Measurement-Driven Study of Rotated Low-Bit Weight Quantization
 — Equilibration Exponents, Error Feedback, and Per-Layer Bit Allocation.**
 Godson Johnson. Preprint — read it here:
-**[paper/turbopress_preprint.pdf](paper/turbopress_preprint.pdf)**
+**[paper/turbopress_preprint.pdf](https://github.com/godsonj64/turbopress/blob/main/paper/turbopress_preprint.pdf)**
 (figures regenerate from the raw result logs via
-[`paper/make_figures.py`](paper/make_figures.py)).
+[`paper/make_figures.py`](https://github.com/godsonj64/turbopress/blob/main/paper/make_figures.py)).
 
 > **Abstract.** We present TurboPress, an instrumented post-training
 > quantization (PTQ) pipeline for LLM weights, with controlled A/B measurements
@@ -89,10 +89,10 @@ turbopress compress Qwen/Qwen3-4B --bits 3 --out ./out
 turbopress validate Qwen/Qwen3-4B ./out/Qwen3-4B-turbopress-3bit --out report.json
 ```
 
-The full pipeline lives in [`turbopress/pipeline.py`](turbopress/pipeline.py)
-(`compress()`); the notebook cell [`scripts/turbopress_onecell.py`](scripts/turbopress_onecell.py)
+The full pipeline lives in [`turbopress/pipeline.py`](https://github.com/godsonj64/turbopress/blob/main/turbopress/pipeline.py)
+(`compress()`); the notebook cell [`scripts/turbopress_onecell.py`](https://github.com/godsonj64/turbopress/blob/main/scripts/turbopress_onecell.py)
 and the `turbopress compress` CLI share that one validated code path. Docs:
-`mkdocs serve` (see [`docs/`](docs/)).
+`mkdocs serve` (see [`docs/`](https://github.com/godsonj64/turbopress/blob/main/docs/)).
 
 ## Packed runtime (v0.4): run models *from* the bits
 
@@ -125,7 +125,7 @@ agreement with fp16):
 | fp16 baseline | 202.5 MiB | 26.4 | — |
 | `cached` | 202.8 MiB (1.0x) | 25.6 | load-time decompression: decode once, fold the rotation into fp16 weights, free the packed streams |
 | `tiled` | **38.9 MiB (5.2x less)** | 2.5 | weights stay packed; row tiles decode per forward (pure PyTorch memory mode) |
-| `triton` | 38.9 MiB (5.2x less) | — | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists; batch-1 GEMV is bandwidth-bound, so the theoretical ceiling is **16/bits x faster** than fp16 (server GPUs; no Triton wheel on this Windows dev box, so it ships kernel-complete but locally untested — the torch paths above are the tested reference) |
+| `triton` | 39.8 MiB (4.0x less) | — | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists. Validated on an RTX 5050 via the `triton-windows` wheel (correctness + memory); tensor-core `tl.dot` reduction landed in v0.4.1 and speed tuning is ongoing — batch-1 GEMV is bandwidth-bound with a theoretical ceiling of **16/bits x** over fp16 |
 
 Reproduce: `python scripts/bench_runtime.py` -> `results/runtime_bench.json`.
 
@@ -403,7 +403,7 @@ negative result stands in both settings.
   fp) and measures KL / top-1 / perplexity against the reference model on real
   text. Runs on GPU (`--device cuda --dtype float16`) and any Llama/Qwen-family
   model; collects calibration scales + Hessians as needed.
-- `tests/` — 98 tests: exact math identities, statistical unbiasedness and
+- `tests/` — 124 tests: exact math identities, statistical unbiasedness and
   variance-scaling tests with explicit confidence bounds, trellis round-trip
   and rate-distortion checks (CPU + CUDA), equilibration optimality checks,
   LDLQ Hessian-loss-reduction and diagonal-Hessian equivalence, greedy
@@ -427,7 +427,7 @@ print(qlayer.storage_report())  # true bits/weight incl. scales + equil
 ```
 
 ```bash
-python -m pytest tests                                    # full suite (98 tests)
+python -m pytest tests                                    # full suite (124 tests)
 python -m turbopress.harness                              # synthetic experiments, ~4 s on CPU
 python -m turbopress.real_model --model Qwen/Qwen3-0.6B   # GPU sweep incl. TCQ + GPTQ, ~20 min
 python -m turbopress.allocate  --model Qwen/Qwen3-0.6B    # per-layer bit allocation vs uniform
@@ -469,18 +469,18 @@ Beyond the library, the repo contains a hosted MVP so a stranger can pay and
 compress a private model with no human in the loop, and gate CI on measured
 fidelity:
 
-- **[`service/`](service/)** — FastAPI control plane (API-key auth, `/jobs`,
+- **[`service/`](https://github.com/godsonj64/turbopress/blob/main/service/)** — FastAPI control plane (API-key auth, `/jobs`,
   signed `/certificates`, Stripe metered billing, R2-presigned artifacts). Runs
   locally with a GPU-free inline runner: `pytest service/tests`.
-- **[`worker/`](worker/)** — Modal serverless GPU function that runs the real
+- **[`worker/`](https://github.com/godsonj64/turbopress/blob/main/worker/)** — Modal serverless GPU function that runs the real
   pipeline, uploads artifacts to Cloudflare R2, signs a certificate, and calls
   the control plane back.
-- **[`action/`](action/)** — the `compress-action` GitHub Action that fails the
+- **[`action/`](https://github.com/godsonj64/turbopress/blob/main/action/)** — the `compress-action` GitHub Action that fails the
   build when fidelity gates (`mean_kl_max`, `top1_agreement_min`, …) are not met.
 
 Certificates are Ed25519-signed; verify with `turbopress.certificate.verify_certificate`
 (`pip install "turbopress[sign]"`). Architecture and deploy steps are in
-[`service/README.md`](service/README.md) and the [hosted docs](docs/hosted.md).
+[`service/README.md`](https://github.com/godsonj64/turbopress/blob/main/service/README.md) and the [hosted docs](https://github.com/godsonj64/turbopress/blob/main/docs/hosted.md).
 
 ## Related work & positioning
 
@@ -505,7 +505,7 @@ plus the controlled, equal-budget measurements.
   explains why the empirically favored AWQ exponents and QAM-W's frozen α=0.3
   cluster near 1/4. Concurrent recipes (QAM-W, OrbitQuant, PiSO) cover adjacent
   ground; the exponent for this specific regime is, to our knowledge, unstated
-  elsewhere. Full references are in [`paper/references.bib`](paper/references.bib).
+  elsewhere. Full references are in [`paper/references.bib`](https://github.com/godsonj64/turbopress/blob/main/paper/references.bib).
 
 **Limitations** (see the paper for detail): evidence is at ≤0.6B parameters (the
 2-bit ranking may shift at 7B+); comparisons are against our own controlled
@@ -533,4 +533,4 @@ If you use TurboPress, please cite:
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache-2.0 — see [LICENSE](https://github.com/godsonj64/turbopress/blob/main/LICENSE) and [NOTICE](https://github.com/godsonj64/turbopress/blob/main/NOTICE).

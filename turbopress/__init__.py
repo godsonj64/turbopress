@@ -1,4 +1,4 @@
-"""turbopress: bias-free low-bit weight quantization for linear layers.
+﻿"""turbopress: bias-free low-bit weight quantization for linear layers.
 
 Implements "stage 4" of the TurboPress proposal: an MSE-optimal scalar
 quantizer applied after a seeded randomized orthogonal transform, plus a
@@ -10,8 +10,8 @@ Reference: TurboQuant (arXiv:2504.19874) for the rotation + optimal scalar
 quantizer + QJL residual construction; this package applies it to weight
 matrices and measures the bias/variance trade-off it buys.
 
-Top-level names are imported lazily (PEP 562) so lightweight consumers — e.g.
-``from turbopress.certificate import verify_certificate`` — don't pull in torch.
+Top-level names are imported lazily (PEP 562) so lightweight consumers - e.g.
+``from turbopress.certificate import verify_certificate`` - don't pull in torch.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 # name -> submodule that defines it (imported on first access).
 _LAZY = {
