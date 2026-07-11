@@ -31,3 +31,8 @@ jobs:
           python -m twine check dist/*
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # `gh release create` fires both the `release` and tag-`push` events,
+          # so two runs race to upload. Let the loser skip the already-uploaded
+          # files (400 "file already exists") instead of failing red.
+          skip-existing: true
