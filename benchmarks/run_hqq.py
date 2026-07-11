@@ -14,10 +14,9 @@ import argparse
 import time
 import traceback
 
+import common_eval as ce
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, HqqConfig
-
-import common_eval as ce
 
 
 def main() -> None:

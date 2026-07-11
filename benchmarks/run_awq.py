@@ -15,10 +15,9 @@ import argparse
 import gc
 import time
 
+import common_eval as ce
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
-import common_eval as ce
 
 
 def main() -> None:

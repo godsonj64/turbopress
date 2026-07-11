@@ -23,7 +23,6 @@ def main() -> None:
 
     # fp16 baseline ppl (same across methods) for a compression/quality frame.
     ppl_fp = next((r["ppl_fp"] for r in rows if r.get("ppl_fp")), None)
-    fp16_mb = None  # optional; unknown unless a method recorded it
 
     cols = ["method", "nominal_bits", "size_mb", "mean_kl", "top1", "ppl_q", "seconds"]
     rows.sort(key=lambda r: r.get("mean_kl", 9e9))

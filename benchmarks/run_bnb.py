@@ -12,10 +12,9 @@ from __future__ import annotations
 import argparse
 import time
 
+import common_eval as ce
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-
-import common_eval as ce
 
 
 def main() -> None:

@@ -18,10 +18,9 @@ import time
 import traceback
 from pathlib import Path
 
+import common_eval as ce
 import torch
 from transformers import AutoTokenizer
-
-import common_eval as ce
 
 
 def load_turbopress_artifact(art_dir: str, device: str):

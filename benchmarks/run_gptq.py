@@ -14,10 +14,9 @@ import gc
 import time
 import traceback
 
+import common_eval as ce
 import torch
 from transformers import AutoTokenizer
-
-import common_eval as ce
 
 
 def main() -> None:
