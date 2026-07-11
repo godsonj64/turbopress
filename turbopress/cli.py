@@ -5,6 +5,7 @@ Subcommands:
     turbopress ablate <model> --bits 3          compare methods (equilibration /
                                                 error feedback / trellis) on one model
     turbopress validate <ref> <candidate>       measure KL / top-1 / perplexity
+    turbopress run <artifact>                   generate text from a packed artifact
 
 Heavy dependencies (torch, transformers) are imported lazily inside each
 handler so ``turbopress --version`` and ``turbopress --help`` stay fast and
@@ -63,6 +64,27 @@ def _add_validate(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--data-dir", default="data", help="cache dir for eval text")
     p.add_argument("--out", default=None, help="write the report to this JSON file")
     p.set_defaults(func=_run_validate)
+
+
+def _add_run(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser(
+        "run",
+        help="generate text from a TurboPress artifact, running from the packed bits",
+        description="Load a TurboPress artifact directory and generate greedily. "
+        "--mode 'cached' decodes to fp16 at load (works on CPU or GPU); 'tiled' and "
+        "'triton' keep the weights trellis-coded in memory (~bits/16 of fp16). "
+        "--cuda-graph captures one decode step and replays it -- the fast packed "
+        "path (needs a CUDA device).",
+    )
+    p.add_argument("artifact", help="path to the TurboPress artifact directory")
+    p.add_argument("--prompt", default="The capital of France is")
+    p.add_argument("--max-new", type=int, default=64, help="tokens to generate")
+    p.add_argument("--mode", default="cached", choices=["cached", "tiled", "triton"],
+                   help="cached = fp16 at load; tiled/triton keep weights packed")
+    p.add_argument("--cuda-graph", action="store_true",
+                   help="CUDA-graph decode: the fast packed path (needs a CUDA device)")
+    p.add_argument("--device", default=None, help="cuda | cpu (default: auto)")
+    p.set_defaults(func=_run_run)
 
 
 def _add_ablate(sub: argparse._SubParsersAction) -> None:
@@ -224,6 +246,84 @@ def _run_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cuda_graph_generate(model, input_ids, max_new: int):
+    """Greedy decode by capturing one decode step in a CUDA graph and replaying it.
+
+    Prefill runs eagerly; the single-token step is captured once against a
+    fixed-size StaticCache, so Triton's per-launch dispatch is paid at capture
+    instead of every step. Greedy, so it matches the eager loop token-for-token.
+    """
+    import torch
+    from transformers import StaticCache
+
+    dev = model.device
+    prompt_len = input_ids.shape[1]
+    kw = dict(max_cache_len=prompt_len + max_new + 16, device=dev, dtype=model.dtype)
+    try:  # StaticCache kwarg name changed across transformers versions
+        cache = StaticCache(config=model.config, max_batch_size=1, **kw)
+    except TypeError:
+        cache = StaticCache(config=model.config, batch_size=1, **kw)
+
+    logits = model(
+        input_ids=input_ids, past_key_values=cache, use_cache=True,
+        cache_position=torch.arange(prompt_len, device=dev),
+    ).logits
+    tok = logits[:, -1:].argmax(-1).clone()
+    pos = torch.tensor([prompt_len], device=dev, dtype=torch.long)
+    gen = [tok.clone()]
+
+    def step():
+        return model(
+            input_ids=tok, past_key_values=cache, use_cache=True, cache_position=pos,
+        ).logits
+
+    side = torch.cuda.Stream()
+    side.wait_stream(torch.cuda.current_stream())
+    with torch.cuda.stream(side):
+        for _ in range(3):
+            tok.copy_(step()[:, -1:].argmax(-1)); pos.add_(1); gen.append(tok.clone())
+    torch.cuda.current_stream().wait_stream(side)
+    torch.cuda.synchronize()
+
+    graph = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(graph):
+        graph_logits = step()
+    torch.cuda.synchronize()
+
+    while len(gen) < max_new:
+        graph.replay()
+        tok.copy_(graph_logits[:, -1:].argmax(-1)); pos.add_(1); gen.append(tok.clone())
+    torch.cuda.synchronize()
+    return torch.cat([input_ids] + gen[:max_new], dim=1).cpu()
+
+
+def _run_run(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    import torch
+    from transformers import AutoTokenizer
+
+    from turbopress.runtime import load_packed_model
+
+    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    if args.cuda_graph and not device.startswith("cuda"):
+        print("error: --cuda-graph requires a CUDA device", file=sys.stderr)
+        return 2
+
+    tokenizer = AutoTokenizer.from_pretrained(Path(args.artifact) / "tokenizer")
+    model, meta = load_packed_model(args.artifact, device=device, mode=args.mode)
+    ids = tokenizer(args.prompt, return_tensors="pt").input_ids.to(device)
+    if args.cuda_graph:
+        out = _cuda_graph_generate(model, ids, args.max_new)
+    else:
+        out = model.generate(ids, max_new_tokens=args.max_new, do_sample=False)
+
+    decode = "cuda-graph" if args.cuda_graph else "eager"
+    print(f"\n{meta['model_id']} @ {meta['bits']}b | mode={args.mode} | {decode} decode\n")
+    print(tokenizer.decode(out[0], skip_special_tokens=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="turbopress",
@@ -231,10 +331,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version",
                         version=f"turbopress {__version__}")
-    sub = parser.add_subparsers(dest="command", metavar="{compress,ablate,validate}")
+    sub = parser.add_subparsers(dest="command",
+                                metavar="{compress,ablate,validate,run}")
     _add_compress(sub)
     _add_ablate(sub)
     _add_validate(sub)
+    _add_run(sub)
     return parser
 
 

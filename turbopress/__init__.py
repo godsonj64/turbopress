@@ -41,6 +41,7 @@ _LAZY = {
     "PackedTCQLinear": "turbopress.runtime",
     "pack_linear": "turbopress.runtime",
     "pack_model": "turbopress.runtime",
+    "load_packed_model": "turbopress.runtime",
     "window_decode_levels": "turbopress.runtime",
     "TCQQuantized": "turbopress.trellis",
     "Trellis": "turbopress.trellis",
@@ -75,6 +76,7 @@ if TYPE_CHECKING:  # help type checkers / IDEs resolve the lazy names
     from turbopress.quantizer import RowQuantized, quantize_rows
     from turbopress.runtime import (
         PackedTCQLinear,
+        load_packed_model,
         pack_linear,
         pack_model,
         window_decode_levels,

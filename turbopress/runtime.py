@@ -60,6 +60,8 @@ __all__ = [
     "pack_linear",
     "PackedTCQLinear",
     "pack_model",
+    "v1_payload_to_packed",
+    "load_packed_model",
 ]
 
 _MODES = ("cached", "tiled", "triton")
@@ -407,3 +409,133 @@ def pack_model(
         "fp16_bytes": fp16_total,
         "compression": fp16_total / max(packed_total, 1),
     }
+
+
+# ----------------------------------------------------------------------------
+# load a packed model straight from a pipeline artifact (format v1)
+# ----------------------------------------------------------------------------
+def v1_payload_to_packed(payload: dict, bias: Tensor | None = None,
+                         device: str = "cuda") -> dict[str, Any]:
+    """Convert one pipeline format-v1 artifact matrix into a format-v2 payload.
+
+    No re-quantization: the stored trellis path/member codes, per-row scales,
+    codebook, rotation signs and equilibration are preserved exactly, so a
+    :class:`PackedTCQLinear` built from the result decodes to the same weights
+    the artifact's fp16 loader (``run_quantized.py``) produces.
+    """
+    from turbopress.pipeline import unpack_bits
+
+    def _u(t: Tensor, count: int, width: int) -> Tensor:
+        arr = t.detach().cpu().contiguous().numpy()
+        return torch.from_numpy(unpack_bits(arr, count, width)).to(torch.uint8)
+
+    n, d, bits = int(payload["n"]), int(payload["d"]), int(payload["bits"])
+    path = _u(payload["path_bits"], n * d, 1).reshape(n, d)
+    member = _u(payload["member_bits"], n * d, bits - 1).reshape(n, d) if bits > 1 else None
+    signs = _u(payload["signs"], d, 1).reshape(1, d)
+    equil = payload["equil"].detach().float().clamp_min(1e-12)
+    return {
+        "format": 2,
+        "n": n,
+        "d": d,
+        "bits": bits,
+        "n_states": int(payload["n_states"]),
+        "block": int(payload["block"]),
+        "path_packed": pack_le(path.to(device), 1),
+        "member_packed": pack_le(member.to(device), bits - 1) if member is not None else None,
+        "scales": payload["scales"].detach().to(device=device, dtype=torch.float16),
+        "signs_packed": pack_le(signs.to(device), 1),
+        "inv_equil": (1.0 / equil).to(device=device, dtype=torch.float16),
+        "codebook": payload["codebook"].detach().to(device=device, dtype=torch.float16),
+        "bias": None if bias is None else bias.detach().to(device=device, dtype=torch.float16),
+        "seed": 0,
+    }
+
+
+@torch.no_grad()
+def load_packed_model(artifact_dir, *, device: str = "cuda", mode: str = "cached"):
+    """Load a TurboPress artifact directory into a packed causal LM.
+
+    Every decoder ``nn.Linear`` becomes a :class:`PackedTCQLinear` in ``mode``.
+    ``"cached"`` decodes to fp16 at load (works on CPU or GPU); ``"tiled"`` and
+    ``"triton"`` keep the weights trellis-coded in memory (~bits/16 of fp16).
+    ``"triton"`` needs a CUDA device and the ``triton`` package. Returns
+    ``(model, meta)`` where ``meta`` is the artifact's metadata dict.
+    """
+    from pathlib import Path
+
+    from transformers import AutoConfig, AutoModelForCausalLM
+
+    from turbopress.pipeline import _TRELLIS_GENERATORS
+    from turbopress.real_model import _decoder_layers
+
+    if mode not in _MODES:
+        raise ValueError(f"mode must be one of {_MODES}, got {mode!r}")
+    root = Path(artifact_dir)
+    weights_path = root / "turbopress_weights.pt"
+    if not weights_path.exists():
+        raise FileNotFoundError(f"not a TurboPress artifact (missing {weights_path})")
+    if mode == "triton":
+        from turbopress.triton_kernel import HAS_TRITON
+
+        if not HAS_TRITON:
+            raise RuntimeError("mode='triton' requires the triton package")
+        if not str(device).startswith("cuda"):
+            raise RuntimeError("mode='triton' requires a CUDA device")
+
+    blob = torch.load(weights_path, map_location="cpu", weights_only=False)
+    meta = dict(blob["meta"])
+    quantized = blob.pop("quantized")
+    extra = blob.pop("extra_state")
+    del blob
+    if int(meta.get("format_version", -1)) != 1:
+        raise RuntimeError("expected a TurboPress format_version=1 artifact")
+    n_states = int(meta["n_states"])
+    if tuple(meta["generators"]) != tuple(_TRELLIS_GENERATORS[n_states]):
+        raise RuntimeError("trellis generator mismatch (artifact/runtime incompatible)")
+
+    config = AutoConfig.from_pretrained(root / "hf_config")
+    prev_dtype = torch.get_default_dtype()
+    torch.set_default_dtype(torch.float16)
+    try:
+        model = AutoModelForCausalLM.from_config(config)
+    finally:
+        torch.set_default_dtype(prev_dtype)
+    model = model.to(dtype=torch.float16)
+
+    # Non-quantized tensors; the quant keys and the tied lm_head come back as
+    # "missing" (expected). Only a non-".weight" unexpected key is a real
+    # mismatch (mirrors the bundled run_quantized.py loader).
+    _missing, unexpected = model.load_state_dict(extra, strict=False)
+    del extra
+    unexpected = [k for k in unexpected if not k.endswith(".weight")]
+    if unexpected:
+        raise RuntimeError(f"unexpected keys in artifact: {unexpected[:8]}")
+    model.tie_weights()  # restore lm_head <- embed_tokens (dropped in the artifact)
+
+    for key in list(quantized):
+        payload = quantized.pop(key)
+        if not key.endswith(".weight"):
+            raise RuntimeError(f"invalid quantized key: {key}")
+        module_path = key[: -len(".weight")]
+        linear = model.get_submodule(module_path)  # raises if the path is wrong
+        if not isinstance(linear, nn.Linear):
+            raise RuntimeError(f"{module_path} is not nn.Linear")
+        bias = None if linear.bias is None else linear.bias.detach().clone()
+        packed = PackedTCQLinear(v1_payload_to_packed(payload, bias, device), mode=mode)
+        parent_path, leaf = module_path.rsplit(".", 1)
+        setattr(model.get_submodule(parent_path), leaf, packed)
+
+    model = model.to(device=device, dtype=torch.float16).eval()
+    model.config.use_cache = True
+    model.tie_weights()  # tie must survive the device transfer
+
+    leftover = [
+        f"layers.{i}.{name}"
+        for i, block in enumerate(_decoder_layers(model))
+        for name, mod in block.named_modules()
+        if isinstance(mod, nn.Linear)
+    ]
+    if leftover:
+        raise RuntimeError(f"unconverted decoder linears remain: {leftover[:8]}")
+    return model, meta
