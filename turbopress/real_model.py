@@ -39,8 +39,12 @@ from turbopress.linear import QJLCorrectedLinear
 __all__ = [
     "RealConfig",
     "collect_input_scales",
+    "collect_hessians",
     "quantize_model_copy",
     "evaluate_pair",
+    "load_eval_batches",
+    "ablation_configs",
+    "run_ablation",
     "main",
 ]
 
@@ -425,6 +429,111 @@ def load_eval_batches(
     return [chunks[i : i + batch_size] for i in range(0, n_seqs, batch_size)]
 
 
+# Method ladder for the CLI ablation: each rung isolates one contribution over
+# the previous, all at the same bit-width and calibration slice.
+#   nearest -> scalar+eq : quarter-power equilibration alone
+#   scalar+eq -> gptq    : + GPTQ/LDLQ Hessian error feedback
+#   scalar+eq -> tcq     : trellis coding instead of error feedback
+_ABLATION_METHODS = ("nearest", "scalar", "gptq", "tcq")
+
+
+def ablation_configs(
+    methods: tuple[str, ...] | list[str], bits: int, n_states: int = 64
+) -> list[RealConfig]:
+    """Build a :class:`RealConfig` per requested method at a fixed ``bits``.
+
+    ``methods`` is any subset of ``("nearest", "scalar", "gptq", "tcq")``:
+    ``nearest`` = rotated scalar quantizer, no equilibration (the biased floor);
+    ``scalar`` = + quarter-power equilibration; ``gptq`` = scalar + equilibration
+    + GPTQ/LDLQ error feedback; ``tcq`` = trellis-coded quantization (the path
+    ``turbopress compress`` ships) + equilibration.
+    """
+    builders = {
+        "nearest": lambda: RealConfig(f"nearest {bits}b", bits=bits),
+        "scalar": lambda: RealConfig(f"scalar {bits}b +eq", bits=bits, equilibrate=True),
+        "gptq": lambda: RealConfig(
+            f"gptq {bits}b +eq", bits=bits, equilibrate=True, error_feedback=True
+        ),
+        "tcq": lambda: RealConfig(
+            f"tcq {bits}b S={n_states} +eq",
+            bits=bits,
+            method="tcq",
+            n_states=n_states,
+            equilibrate=True,
+        ),
+    }
+    unknown = [m for m in methods if m not in builders]
+    if unknown:
+        raise ValueError(
+            f"unknown method(s) {unknown}; choose from {sorted(builders)}"
+        )
+    if "tcq" in methods and not 1 <= bits <= 7:
+        # TCQ's doubled codebook (2^(bits+1) levels) must index into uint8.
+        raise ValueError(f"the 'tcq' method supports bits in [1, 7], got {bits}")
+    if not 1 <= bits <= 8:
+        raise ValueError(f"bits must be in [1, 8], got {bits}")
+    return [builders[m]() for m in methods]
+
+
+@torch.no_grad()
+def run_ablation(
+    fp_model: nn.Module,
+    configs: list[RealConfig],
+    eval_batches: list[Tensor],
+    calib_batches: list[Tensor] | None = None,
+    seed: int = 0,
+    verbose: bool = False,
+) -> list[dict]:
+    """Quantize ``fp_model`` under each config and evaluate it against fp16.
+
+    Calibration scales (for equilibration) and Hessians (for error feedback)
+    are collected once from ``calib_batches`` and shared across every config
+    that needs them, so the comparison is on one common calibration slice.
+    Returns one result row per config: ``label``, ``bits_per_weight``,
+    ``n_replaced``, the ``evaluate_pair`` metrics, and ``seconds``.
+    """
+    need_calib = any(c.equilibrate for c in configs)
+    need_hessian = any(c.error_feedback for c in configs)
+    if (need_calib or need_hessian) and not calib_batches:
+        raise ValueError(
+            "one or more configs need calibration (equilibrate/error_feedback) "
+            "but calib_batches is empty"
+        )
+    col_scales = collect_input_scales(fp_model, calib_batches) if need_calib else None
+    hessians = collect_hessians(fp_model, calib_batches) if need_hessian else None
+
+    on_cuda = bool(eval_batches) and eval_batches[0].device.type == "cuda"
+    results = []
+    for cfg in configs:
+        t0 = time.time()
+        q_model, stats = quantize_model_copy(
+            fp_model, cfg, seed=seed, col_scales=col_scales, hessians=hessians
+        )
+        metrics = evaluate_pair(fp_model, q_model, eval_batches)
+        del q_model
+        if on_cuda:
+            torch.cuda.empty_cache()
+        row = {
+            "label": cfg.label,
+            "bits_per_weight": round(stats["bits_per_weight"], 4),
+            "n_replaced": stats["n_replaced"],
+            **{
+                k: (round(v, 6) if isinstance(v, float) else v)
+                for k, v in metrics.items()
+            },
+            "seconds": round(time.time() - t0, 1),
+        }
+        results.append(row)
+        if verbose:
+            print(
+                f"  {cfg.label:<22} bits/w={row['bits_per_weight']:<7} "
+                f"KL={row['mean_kl']:<10} top1={row['top1_agreement']:<8} "
+                f"ppl={row['ppl_q']:<10} ({row['seconds']}s)",
+                flush=True,
+            )
+    return results
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--model", default="Qwen/Qwen3-0.6B")
@@ -476,11 +585,8 @@ def main(argv: list[str] | None = None) -> None:
     ]
     print(f"Eval set: {args.seqs} x {args.seqlen} tokens of real text", flush=True)
 
-    need_calib = any(cfg.equilibrate for cfg in configs)
-    need_hessian = any(cfg.error_feedback for cfg in configs)
-    col_scales = None
-    hessians = None
-    if need_calib or need_hessian:
+    calib = None
+    if any(cfg.equilibrate or cfg.error_feedback for cfg in configs):
         calib = [
             b.to(device)
             for b in load_eval_batches(
@@ -493,39 +599,13 @@ def main(argv: list[str] | None = None) -> None:
             )
         ]
         print(
-            f"Calibrating on {args.calib_seqs} x {args.seqlen} held-out tokens "
-            f"(scales={need_calib}, hessians={need_hessian})...",
+            f"Calibrating on {args.calib_seqs} x {args.seqlen} held-out tokens...",
             flush=True,
         )
-        if need_calib:
-            col_scales = collect_input_scales(fp_model, calib)
-        if need_hessian:
-            hessians = collect_hessians(fp_model, calib)
 
-    results = []
-    for cfg in configs:
-        t0 = time.time()
-        q_model, stats = quantize_model_copy(
-            fp_model, cfg, seed=args.seed, col_scales=col_scales, hessians=hessians
-        )
-        metrics = evaluate_pair(fp_model, q_model, batches)
-        del q_model
-        if device.type == "cuda":
-            torch.cuda.empty_cache()
-        row = {
-            "label": cfg.label,
-            "bits_per_weight": round(stats["bits_per_weight"], 4),
-            "n_replaced": stats["n_replaced"],
-            **{k: (round(v, 6) if isinstance(v, float) else v) for k, v in metrics.items()},
-            "seconds": round(time.time() - t0, 1),
-        }
-        results.append(row)
-        print(
-            f"  {cfg.label:<22} bits/w={row['bits_per_weight']:<7} "
-            f"KL={row['mean_kl']:<10} top1={row['top1_agreement']:<8} "
-            f"ppl={row['ppl_q']:<10} ({row['seconds']}s)",
-            flush=True,
-        )
+    results = run_ablation(
+        fp_model, configs, batches, calib_batches=calib, seed=args.seed, verbose=True
+    )
 
     print(f"\nfp32 reference perplexity: {results[0]['ppl_fp']:.4f}")
     header = f"{'config':<22} {'bits/w':>7} {'KL(fp||q)':>10} {'top1':>7} {'ppl':>10}"
