@@ -2,6 +2,8 @@
 
 Subcommands:
     turbopress compress <model> --bits 3        run the full quantization pipeline
+    turbopress ablate <model> --bits 3          compare methods (equilibration /
+                                                error feedback / trellis) on one model
     turbopress validate <ref> <candidate>       measure KL / top-1 / perplexity
 
 Heavy dependencies (torch, transformers) are imported lazily inside each
@@ -61,6 +63,107 @@ def _add_validate(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--data-dir", default="data", help="cache dir for eval text")
     p.add_argument("--out", default=None, help="write the report to this JSON file")
     p.set_defaults(func=_run_validate)
+
+
+def _add_ablate(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser(
+        "ablate",
+        help="measure how much equilibration / error feedback / trellis coding "
+        "help on YOUR model",
+        description="Quantize a model several ways on ONE shared calibration and "
+        "eval slice and report KL / top-1 / perplexity for each, so you can see "
+        "which methods actually help before committing. Methods: 'nearest' "
+        "(rotated scalar, no equilibration), 'scalar' (+ quarter-power "
+        "equilibration), 'gptq' (scalar + equilibration + GPTQ/LDLQ Hessian error "
+        "feedback), 'tcq' (trellis coding + equilibration -- the path `compress` "
+        "ships). This is a measurement: no packed artifact is written.",
+    )
+    p.add_argument("model", help="Hugging Face model id or local path")
+    p.add_argument("--bits", type=int, default=3, help="bits/weight, 2..8 (default: 3)")
+    p.add_argument(
+        "--methods", default="nearest,scalar,gptq,tcq",
+        help="comma-separated subset of {nearest,scalar,gptq,tcq} "
+        "(default: nearest,scalar,gptq,tcq)",
+    )
+    p.add_argument("--n-states", type=int, default=64, choices=[4, 8, 16, 64],
+                   help="trellis states for the tcq method (default: 64)")
+    p.add_argument("--seqs", type=int, default=16, help="eval sequences")
+    p.add_argument("--calib-seqs", type=int, default=8, help="calibration sequences")
+    p.add_argument("--seqlen", type=int, default=256, help="tokens per sequence")
+    p.add_argument("--batch", type=int, default=4, help="sequences per forward")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--device", default=None, help="cuda | cpu (default: auto)")
+    p.add_argument("--dtype", default="float16",
+                   choices=["float16", "bfloat16", "float32"])
+    p.add_argument("--data-dir", default="data", help="cache dir for eval text")
+    p.add_argument("--out", default=None, help="write the report to this JSON file")
+    p.set_defaults(func=_run_ablate)
+
+
+def _run_ablate(args: argparse.Namespace) -> int:
+    import json as _json
+    from pathlib import Path
+
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    from turbopress.real_model import ablation_configs, load_eval_batches, run_ablation
+
+    methods = [m.strip() for m in args.methods.split(",") if m.strip()]
+    configs = ablation_configs(tuple(methods), bits=args.bits, n_states=args.n_states)
+
+    device = torch.device(
+        args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    torch.manual_seed(args.seed)
+    print(f"Loading {args.model} ({args.dtype}, {device})...", flush=True)
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    fp_model = (
+        AutoModelForCausalLM.from_pretrained(args.model, dtype=getattr(torch, args.dtype))
+        .to(device)
+        .eval()
+    )
+
+    data_dir = Path(args.data_dir)
+    eval_batches = [
+        b.to(device)
+        for b in load_eval_batches(tokenizer, args.seqs, args.seqlen, args.batch, data_dir)
+    ]
+    calib_batches = None
+    if any(c.equilibrate or c.error_feedback for c in configs):
+        calib_batches = [
+            b.to(device)
+            for b in load_eval_batches(
+                tokenizer, args.calib_seqs, args.seqlen, args.batch, data_dir,
+                offset_tokens=args.seqs * args.seqlen,  # disjoint from eval slice
+            )
+        ]
+    print(f"Eval: {args.seqs}x{args.seqlen} tokens | methods: {', '.join(methods)}",
+          flush=True)
+
+    results = run_ablation(
+        fp_model, configs, eval_batches, calib_batches=calib_batches,
+        seed=args.seed, verbose=True,
+    )
+
+    header = f"{'config':<22} {'bits/w':>7} {'KL(fp||q)':>10} {'top1':>7} {'ppl':>10}"
+    print(f"\nfp16 reference perplexity: {results[0]['ppl_fp']:.4f}")
+    print("\n" + header)
+    print("-" * len(header))
+    for r in results:
+        print(
+            f"{r['label']:<22} {r['bits_per_weight']:>7.3f} {r['mean_kl']:>10.4f} "
+            f"{r['top1_agreement']:>7.3f} {r['ppl_q']:>10.3f}"
+        )
+
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(_json.dumps(
+            {"model": args.model, "bits": args.bits, "methods": methods,
+             "ppl_fp": results[0]["ppl_fp"], "results": results}, indent=2))
+        print(f"\nreport written to {out_path}")
+    return 0
 
 
 def _run_compress(args: argparse.Namespace) -> int:
@@ -128,8 +231,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version",
                         version=f"turbopress {__version__}")
-    sub = parser.add_subparsers(dest="command", metavar="{compress,validate}")
+    sub = parser.add_subparsers(dest="command", metavar="{compress,ablate,validate}")
     _add_compress(sub)
+    _add_ablate(sub)
     _add_validate(sub)
     return parser
 

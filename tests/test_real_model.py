@@ -5,7 +5,13 @@ from torch import nn
 transformers = pytest.importorskip("transformers")
 
 from turbopress.linear import QJLCorrectedLinear
-from turbopress.real_model import RealConfig, evaluate_pair, quantize_model_copy
+from turbopress.real_model import (
+    RealConfig,
+    ablation_configs,
+    evaluate_pair,
+    quantize_model_copy,
+    run_ablation,
+)
 
 
 @pytest.fixture(scope="module")
@@ -63,6 +69,55 @@ def test_evaluate_pair_metrics_sane(tiny_llama):
     # Finer quantization tracks the fp model more closely.
     assert m8["mean_kl"] < m2["mean_kl"]
     assert m8["top1_agreement"] > m2["top1_agreement"]
+
+
+def test_ablation_configs_ladder():
+    cfgs = ablation_configs(("nearest", "scalar", "gptq", "tcq"), bits=3, n_states=64)
+    by_label = {c.label: c for c in cfgs}
+    assert not by_label["nearest 3b"].equilibrate
+    assert by_label["scalar 3b +eq"].equilibrate
+    assert by_label["scalar 3b +eq"].method == "scalar"
+    assert by_label["gptq 3b +eq"].error_feedback
+    tcq = by_label["tcq 3b S=64 +eq"]
+    assert tcq.method == "tcq" and tcq.n_states == 64 and tcq.equilibrate
+    assert all(c.bits == 3 for c in cfgs)
+    with pytest.raises(ValueError):
+        ablation_configs(("bogus",), bits=3)
+    # TCQ's doubled codebook caps at 7 bits; scalar methods still allow 8.
+    with pytest.raises(ValueError, match="tcq"):
+        ablation_configs(("tcq",), bits=8)
+    assert ablation_configs(("gptq",), bits=8)[0].bits == 8
+
+
+def test_run_ablation_shares_calibration_and_ranks_by_bits(tiny_llama):
+    gen = torch.Generator().manual_seed(0)
+    eval_batches = [torch.randint(0, 256, (2, 32), generator=gen) for _ in range(2)]
+    calib_batches = [torch.randint(0, 256, (2, 32), generator=gen) for _ in range(2)]
+    # Exercise every path that needs calibration/hessians end to end: a coarse
+    # 2-bit gptq (equilibration + LDLQ error feedback) vs a fine 6-bit tcq
+    # (TCQ's doubled codebook caps bits at 7).
+    configs = [
+        RealConfig("gptq 2b +eq", bits=2, equilibrate=True, error_feedback=True),
+        RealConfig("tcq 6b +eq", bits=6, method="tcq", n_states=8, equilibrate=True),
+    ]
+    rows = run_ablation(tiny_llama, configs, eval_batches, calib_batches, seed=0)
+    assert [r["label"] for r in rows] == ["gptq 2b +eq", "tcq 6b +eq"]
+    for r in rows:
+        assert r["mean_kl"] >= 0
+        assert 0 <= r["top1_agreement"] <= 1
+        assert r["bits_per_weight"] > 0
+        assert r["n_replaced"] == 14
+    # Same fp reference; finer quantization tracks it more closely.
+    assert rows[0]["ppl_fp"] == pytest.approx(rows[1]["ppl_fp"])
+    assert rows[1]["mean_kl"] < rows[0]["mean_kl"]
+
+
+def test_run_ablation_requires_calibration_when_needed(tiny_llama):
+    gen = torch.Generator().manual_seed(0)
+    eval_batches = [torch.randint(0, 256, (2, 16), generator=gen)]
+    configs = [RealConfig("scalar 3b +eq", bits=3, equilibrate=True)]
+    with pytest.raises(ValueError, match="calib"):
+        run_ablation(tiny_llama, configs, eval_batches, calib_batches=None)
 
 
 def test_quantized_model_forward_matches_at_high_bits(tiny_llama):

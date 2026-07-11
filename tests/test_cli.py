@@ -42,3 +42,20 @@ def test_bits_bounds_rejected_by_parser_choices():
     # n_states is constrained by argparse choices; invalid values exit(2).
     with pytest.raises(SystemExit):
         build_parser().parse_args(["compress", "m", "--n-states", "7"])
+
+
+def test_ablate_args_parse():
+    args = build_parser().parse_args(
+        ["ablate", "Qwen/Qwen3-4B", "--bits", "3", "--methods", "nearest,tcq"]
+    )
+    assert args.command == "ablate"
+    assert args.model == "Qwen/Qwen3-4B"
+    assert args.bits == 3
+    assert args.methods == "nearest,tcq"
+    assert args.n_states == 64
+    assert callable(args.func)
+
+
+def test_ablate_rejects_bad_n_states():
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["ablate", "m", "--n-states", "7"])
