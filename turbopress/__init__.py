@@ -19,7 +19,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 # name -> submodule that defines it (imported on first access).
 _LAZY = {
