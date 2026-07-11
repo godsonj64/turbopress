@@ -379,7 +379,8 @@ turbopress validate Qwen/Qwen3-4B ./out/Qwen3-4B-turbopress-3bit
         <span class="step-tag">Step 2 &mdash; Press</span>
         <h3>Compress to a matrix of targets</h3>
         <p>Rotation &rarr; corrected channel equalization &rarr; trellis-coded quantization
-        with per-layer bit allocation. Export TurboPress, GGUF, or FP8 &mdash; tuned per device.</p>
+        with error feedback. Ships a self-contained packed artifact with a standalone
+        loader, plus plain fp16 Hugging Face export.</p>
       </div>
       <div class="card">
         <span class="step-tag">Step 3 &mdash; Prove</span>
