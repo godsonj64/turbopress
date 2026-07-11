@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import time
+import traceback
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, HqqConfig
@@ -53,10 +54,14 @@ def main() -> None:
                 print("  (could not save_pretrained for size accounting:", e, ")")
             return m
 
-        metrics = ce.run_eval(args.model, load_quant, batches, args.device)
-        ce.save_result(args.results_dir, "hqq", bits, args.model, metrics,
-                       size_mb=ce.dir_size_mb(save_dir),
-                       seconds=getattr(load_quant, "seconds", None))
+        try:
+            metrics = ce.run_eval(args.model, load_quant, batches, args.device)
+            ce.save_result(args.results_dir, "hqq", bits, args.model, metrics,
+                           size_mb=ce.dir_size_mb(save_dir),
+                           seconds=getattr(load_quant, "seconds", None))
+        except Exception as e:  # noqa: BLE001 - one bad width shouldn't drop the rest
+            traceback.print_exc()
+            print(f"  [hqq {bits}-bit] FAILED: {type(e).__name__}: {e}", flush=True)
 
 
 if __name__ == "__main__":

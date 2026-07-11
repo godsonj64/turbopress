@@ -15,6 +15,7 @@ import importlib.util
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 
 import torch
@@ -47,23 +48,26 @@ def main() -> None:
     batches = ce.build_eval(tok, args.eval_seqs, args.seqlen, args.batch)
 
     for bits in [int(b) for b in args.bits.split(",")]:
-        art_root = Path(args.work_dir) / f"turbopress_{bits}bit"
-        print(f"\n########## TurboPress TCQ {bits}-bit ##########", flush=True)
-        t0 = time.time()
-        subprocess.run(
-            [sys.executable, "-m", "turbopress.cli", "compress", args.model,
-             "--bits", str(bits), "--no-self-test", "--out", str(art_root)],
-            check=True,
-        )
-        art_dir = glob.glob(str(art_root / "*-turbopress-*"))[0]
-        seconds = time.time() - t0
-
-        metrics = ce.run_eval(
-            args.model, lambda d=art_dir: load_turbopress_artifact(d, args.device),
-            batches, args.device,
-        )
-        ce.save_result(args.results_dir, "turbopress", bits, args.model, metrics,
-                       size_mb=ce.dir_size_mb(art_dir), seconds=seconds)
+        try:
+            art_root = Path(args.work_dir) / f"turbopress_{bits}bit"
+            print(f"\n########## TurboPress TCQ {bits}-bit ##########", flush=True)
+            t0 = time.time()
+            subprocess.run(
+                [sys.executable, "-m", "turbopress.cli", "compress", args.model,
+                 "--bits", str(bits), "--no-self-test", "--out", str(art_root)],
+                check=True,
+            )
+            art_dir = glob.glob(str(art_root / "*-turbopress-*"))[0]
+            seconds = time.time() - t0
+            metrics = ce.run_eval(
+                args.model, lambda d=art_dir: load_turbopress_artifact(d, args.device),
+                batches, args.device,
+            )
+            ce.save_result(args.results_dir, "turbopress", bits, args.model, metrics,
+                           size_mb=ce.dir_size_mb(art_dir), seconds=seconds)
+        except Exception as e:  # noqa: BLE001 - one bad width shouldn't drop the rest
+            traceback.print_exc()
+            print(f"  [turbopress {bits}-bit] FAILED: {type(e).__name__}: {e}", flush=True)
 
 
 if __name__ == "__main__":
