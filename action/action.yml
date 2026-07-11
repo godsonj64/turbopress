@@ -2,7 +2,7 @@ name: "TurboPress Compress"
 description: "Compress a model with TurboPress and fail the build if fidelity gates are not met."
 branding:
   icon: "cpu"
-  color: "purple"
+  color: "green"
 
 inputs:
   api-key:

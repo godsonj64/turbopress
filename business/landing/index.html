@@ -1,62 +1,111 @@
 <title>TurboPress — Certified LLM Compression</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Slab:wght@500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
   :root {
-    --bg: #F5F4EE;
-    --surface: #FDFCF8;
-    --ink: #1C221D;
-    --muted: #5C665E;
-    --faint: #8A948B;
-    --line: #D8DBD2;
-    --accent: #14603F;
-    --accent-soft: #E4EEE6;
-    --seal: #B23A26;
-    --code-bg: #EDEDE4;
-    --shadow: 0 2px 24px rgba(28, 40, 30, 0.09);
+    --page-base: #EAF0FF;
+    --surface: rgba(255,255,255,0.62);
+    --ink: #0B1230;
+    --muted: #3B4370;
+    --faint: #6672A6;
+    --line: rgba(11,18,48,0.14);
+    --accent: #0B7A55;
+    --accent-ink: #FFFFFF;
+    --accent-soft: rgba(11,122,85,0.10);
+    --seal: #0B7A55;
+    --code-bg: rgba(11,18,48,0.05);
+    --shadow: 0 8px 40px rgba(20,30,80,0.16);
+    --header-bg: rgba(255,255,255,0.45);
+    --glow: rgba(122,150,255,0.35);
+    --hero-grad: radial-gradient(150% 150% at 20% 14%, #4E66DE 0%, #4055C6 30%, #2C3A94 62%, #1A2360 100%);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #131711;
-      --surface: #1A1F19;
-      --ink: #E6EAE2;
-      --muted: #9FAA9E;
-      --faint: #6E786D;
-      --line: #2C332B;
-      --accent: #57BE8B;
-      --accent-soft: #1E2E24;
-      --seal: #E0654C;
-      --code-bg: #20261F;
-      --shadow: 0 2px 24px rgba(0, 0, 0, 0.4);
+      --page-base: #070B1F;
+      --surface: rgba(255,255,255,0.055);
+      --ink: #F3F6FF;
+      --muted: #AEB9E6;
+      --faint: #7885C0;
+      --line: rgba(255,255,255,0.14);
+      --accent: #43DFA8;
+      --accent-ink: #05231A;
+      --accent-soft: rgba(67,223,168,0.14);
+      --seal: #43DFA8;
+      --code-bg: rgba(255,255,255,0.05);
+      --shadow: 0 8px 40px rgba(0,0,0,0.55);
+      --header-bg: rgba(5,8,24,0.4);
+      --glow: rgba(80,110,255,0.28);
+      --hero-grad: radial-gradient(150% 150% at 18% 12%, #4A62DA 0%, #35459E 40%, #1E285F 74%, #070A1C 100%);
     }
   }
   :root[data-theme="light"] {
-    --bg: #F5F4EE; --surface: #FDFCF8; --ink: #1C221D; --muted: #5C665E;
-    --faint: #8A948B; --line: #D8DBD2; --accent: #14603F; --accent-soft: #E4EEE6;
-    --seal: #B23A26; --code-bg: #EDEDE4; --shadow: 0 2px 24px rgba(28,40,30,0.09);
+    --page-base: #EAF0FF; --surface: rgba(255,255,255,0.62); --ink: #0B1230; --muted: #3B4370;
+    --faint: #6672A6; --line: rgba(11,18,48,0.14); --accent: #0B7A55; --accent-ink: #FFFFFF;
+    --accent-soft: rgba(11,122,85,0.10); --seal: #0B7A55; --code-bg: rgba(11,18,48,0.05);
+    --shadow: 0 8px 40px rgba(20,30,80,0.16); --header-bg: rgba(255,255,255,0.45); --glow: rgba(122,150,255,0.35);
+    --hero-grad: radial-gradient(150% 150% at 20% 14%, #4E66DE 0%, #4055C6 30%, #2C3A94 62%, #1A2360 100%);
   }
   :root[data-theme="dark"] {
-    --bg: #131711; --surface: #1A1F19; --ink: #E6EAE2; --muted: #9FAA9E;
-    --faint: #6E786D; --line: #2C332B; --accent: #57BE8B; --accent-soft: #1E2E24;
-    --seal: #E0654C; --code-bg: #20261F; --shadow: 0 2px 24px rgba(0,0,0,0.4);
+    --page-base: #070B1F; --surface: rgba(255,255,255,0.055); --ink: #F3F6FF; --muted: #AEB9E6;
+    --faint: #7885C0; --line: rgba(255,255,255,0.14); --accent: #43DFA8; --accent-ink: #05231A;
+    --accent-soft: rgba(67,223,168,0.14); --seal: #43DFA8; --code-bg: rgba(255,255,255,0.05);
+    --shadow: 0 8px 40px rgba(0,0,0,0.55); --header-bg: rgba(5,8,24,0.4); --glow: rgba(80,110,255,0.28);
+    --hero-grad: radial-gradient(150% 150% at 18% 12%, #4A62DA 0%, #35459E 40%, #1E285F 74%, #070A1C 100%);
   }
 
   * { box-sizing: border-box; }
+  html { background: var(--page-base); }
   body {
     margin: 0;
-    background: var(--bg);
+    background: var(--page-base);
     color: var(--ink);
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    font-family: "Roboto", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 16.5px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  .serif { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif; }
-  .mono  { font-family: "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace; }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(650px 550px at 92% 8%, var(--glow), transparent 70%),
+      radial-gradient(720px 620px at 4% 92%, var(--glow), transparent 70%);
+    opacity: 0.55;
+  }
+  .serif { font-family: "Roboto Slab", "Roboto", Georgia, serif; letter-spacing: -0.01em; }
+  .mono  { font-family: "Roboto Mono", "Cascadia Code", Consolas, monospace; }
 
   .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
 
+  /* ---------------- hero band (full-bleed gradient) ---------------- */
+  .hero-band {
+    --ink: rgba(255,255,255,0.97);
+    --muted: rgba(236,240,255,0.96);
+    --faint: rgba(230,236,255,0.72);
+    --line: rgba(255,255,255,0.26);
+    --accent: #7FEFC4;
+    --accent-ink: #05231A;
+    --seal: #7FEFC4;
+    --surface: rgba(255,255,255,0.10);
+    --shadow: 0 20px 60px rgba(5,10,40,0.35);
+    position: relative; overflow: hidden;
+    background-image: var(--hero-grad); background-color: var(--page-base);
+    color: var(--ink);
+  }
+  .hero-band::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 170px;
+    background: linear-gradient(to bottom, transparent, var(--page-base));
+    pointer-events: none;
+  }
+  .hero-band h1, .hero-band .sub, .hero-band .eyebrow {
+    text-shadow: 0 1px 16px rgba(8,12,42,0.42);
+  }
+  .hero-band .eyebrow { color: rgba(255,255,255,0.92); }
+
   header.site {
-    display: flex; align-items: baseline; justify-content: space-between;
-    padding: 26px 0 0;
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 22px 0 0; padding: 14px 22px; border-radius: 14px;
+    background: var(--header-bg); border: 1px solid var(--line);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    position: relative; z-index: 2;
   }
   .brand { font-weight: 700; letter-spacing: 0.01em; font-size: 1.05rem; }
   .brand .press { color: var(--accent); }
@@ -68,11 +117,11 @@
   /* ---------------- hero ---------------- */
   .hero {
     display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px;
-    align-items: center; padding: 84px 0 72px;
+    align-items: center; padding: 84px 0 40px; position: relative; z-index: 2;
   }
   .eyebrow {
     font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--accent); font-weight: 600; margin-bottom: 18px;
+    color: var(--accent); font-weight: 700; margin-bottom: 18px;
   }
   h1 {
     font-size: clamp(2.2rem, 4.6vw, 3.3rem);
@@ -83,23 +132,20 @@
   .sub { color: var(--muted); max-width: 34em; margin: 0 0 30px; }
   .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
   .btn {
-    display: inline-block; padding: 12px 22px; border-radius: 4px;
+    display: inline-block; padding: 12px 22px; border-radius: 10px;
     font-size: 0.92rem; font-weight: 600; text-decoration: none;
     border: 1px solid transparent; cursor: pointer;
   }
-  .btn.primary { background: var(--accent); color: #fff; }
-  :root[data-theme="dark"] .btn.primary, .dark-btn-fix { color: #0d130f; }
-  @media (prefers-color-scheme: dark) { .btn.primary { color: #0d130f; } }
-  :root[data-theme="light"] .btn.primary { color: #fff; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
   .btn.primary:hover { filter: brightness(1.08); }
   .btn.ghost { border-color: var(--line); color: var(--ink); background: transparent; }
   .btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
 
   /* ------------- certificate ------------- */
   .cert {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
     box-shadow: var(--shadow); padding: 26px 28px; position: relative;
-    font-size: 0.82rem;
+    font-size: 0.82rem; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   }
   .cert .head {
     display: flex; justify-content: space-between; align-items: baseline;
@@ -121,12 +167,13 @@
     display: flex; align-items: center; justify-content: center; text-align: center;
     font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
     transform: rotate(-11deg); line-height: 1.5;
-    box-shadow: inset 0 0 0 3px var(--surface), inset 0 0 0 4px var(--seal);
-    opacity: 0.92;
+    background: rgba(255,255,255,0.06); backdrop-filter: blur(4px);
+    box-shadow: 0 0 24px rgba(127,239,196,0.30);
+    opacity: 0.95;
   }
 
   /* ------------- sections ------------- */
-  section { padding: 64px 0; border-top: 1px solid var(--line); }
+  section { padding: 64px 0; border-top: 1px solid var(--line); position: relative; }
   h2 {
     font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 600; letter-spacing: -0.01em;
     margin: 0 0 14px; text-wrap: balance;
@@ -135,8 +182,8 @@
 
   .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
   .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-    padding: 22px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   }
   .card h3 { margin: 0 0 8px; font-size: 1rem; }
   .card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
@@ -146,8 +193,9 @@
   }
 
   pre.shell {
-    background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 14px;
     padding: 18px 20px; overflow-x: auto; font-size: 0.82rem; line-height: 1.7; margin: 26px 0 0;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   }
   pre.shell .c { color: var(--faint); }
   pre.shell .g { color: var(--accent); font-weight: 600; }
@@ -155,7 +203,8 @@
   table.bench {
     width: 100%; border-collapse: collapse; font-size: 0.88rem;
     font-variant-numeric: tabular-nums; background: var(--surface);
-    border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   }
   .bench-scroll { overflow-x: auto; margin-top: 8px; }
   table.bench th, table.bench td { padding: 10px 16px; text-align: right; }
@@ -172,9 +221,10 @@
 
   /* ------------- pricing ------------- */
   .tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-  .tier { background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-    padding: 26px; display: flex; flex-direction: column; gap: 14px; }
-  .tier.hot { border-color: var(--accent); box-shadow: var(--shadow); }
+  .tier { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px; display: flex; flex-direction: column; gap: 14px;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+  .tier.hot { border-color: var(--accent); box-shadow: var(--shadow), 0 0 30px var(--accent-soft); }
   .tier .name { font-weight: 700; }
   .tier .price { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.02em; }
   .tier .price span { font-size: 0.8rem; color: var(--muted); font-weight: 400; }
@@ -203,58 +253,60 @@
   }
 </style>
 
-<div class="wrap">
-  <header class="site">
-    <div class="brand serif">Turbo<span class="press">Press</span></div>
-    <nav class="top">
-      <a href="#start">Install</a>
-      <a href="#how">How it works</a>
-      <a href="#numbers">Numbers</a>
-      <a href="#research">Research</a>
-      <a href="#pricing">Pricing</a>
-      <a href="https://github.com/godsonj64/turbopress">GitHub&nbsp;&#8599;</a>
-    </nav>
-  </header>
+<div class="hero-band">
+  <div class="wrap">
+    <header class="site">
+      <div class="brand serif">Turbo<span class="press">Press</span></div>
+      <nav class="top">
+        <a href="#start">Install</a>
+        <a href="#how">How it works</a>
+        <a href="#numbers">Numbers</a>
+        <a href="#research">Research</a>
+        <a href="#pricing">Pricing</a>
+        <a href="https://github.com/godsonj64/turbopress">GitHub&nbsp;&#8599;</a>
+      </nav>
+    </header>
 
-  <div class="hero">
-    <div>
-      <div class="eyebrow">Certified model compression &middot; open source</div>
-      <h1 class="serif">Ship models 5&times; smaller. <em>Prove</em> nothing broke.</h1>
-      <p class="sub">
-        TurboPress compresses your fine-tuned LLM to 2&ndash;4 bits per weight and
-        returns a signed fidelity certificate: measured divergence from your
-        full-precision model, on held-out data, every time you ship.
-        Compression stops being a leap of faith and becomes a CI step.
-      </p>
-      <div class="cta-row">
-        <a class="btn primary" href="#start">pip install turbopress</a>
-        <a class="btn ghost" href="mailto:godsonj64@gmail.com?subject=TurboPress%20Team%20waitlist">Get hosted access</a>
+    <div class="hero">
+      <div>
+        <div class="eyebrow">Certified model compression &middot; open source</div>
+        <h1 class="serif">Ship models 5&times; smaller. <em>Prove</em> nothing broke.</h1>
+        <p class="sub">
+          TurboPress compresses your fine-tuned LLM to 2&ndash;4 bits per weight and
+          returns a signed fidelity certificate: measured divergence from your
+          full-precision model, on held-out data, every time you ship.
+          Compression stops being a leap of faith and becomes a CI step.
+        </p>
+        <div class="cta-row">
+          <a class="btn primary" href="#start">pip install turbopress</a>
+          <a class="btn ghost" href="mailto:godsonj64@gmail.com?subject=TurboPress%20Team%20waitlist">Get hosted access</a>
+        </div>
+        <p class="mono" style="margin:18px 0 0;font-size:0.76rem;color:var(--faint)">
+          Live now: Apache-2.0 on <a href="https://pypi.org/project/turbopress/" style="color:var(--muted)">PyPI</a>
+          &middot; <a href="https://github.com/godsonj64/turbopress" style="color:var(--muted)">source</a>
+          &middot; <a href="https://godsonj64.github.io/turbopress/" style="color:var(--muted)">docs</a>
+        </p>
       </div>
-      <p class="mono" style="margin:18px 0 0;font-size:0.76rem;color:var(--faint)">
-        Live now: Apache-2.0 on <a href="https://pypi.org/project/turbopress/" style="color:var(--muted)">PyPI</a>
-        &middot; <a href="https://github.com/godsonj64/turbopress" style="color:var(--muted)">source</a>
-        &middot; <a href="https://godsonj64.github.io/turbopress/" style="color:var(--muted)">docs</a>
-      </p>
-    </div>
 
-    <div class="cert mono" aria-label="Example fidelity certificate">
-      <div class="head">
-        <span class="title">Fidelity Certificate</span>
-        <span class="id">TP-2026-07-09-A41C</span>
+      <div class="cert mono" aria-label="Example fidelity certificate">
+        <div class="head">
+          <span class="title">Fidelity Certificate</span>
+          <span class="id">TP-2026-07-09-A41C</span>
+        </div>
+        <dl>
+          <dt>Model</dt><dd>Qwen3-0.6B (fine-tuned)</dd>
+          <dt>Method</dt><dd>TCQ S=64 + equalization</dd>
+          <dt>Rate</dt><dd><strong>4.02 bits/weight</strong></dd>
+          <dt>KL(fp&nbsp;&#8214;&nbsp;quant)</dt><dd><strong>0.079 nats</strong></dd>
+          <dt>Top-1 agreement</dt><dd>84.4%</dd>
+          <dt>Perplexity</dt><dd>29.11 &rarr; 30.63 (+5.2%)</dd>
+          <dt>Eval tokens</dt><dd>4,080 held-out</dd>
+          <dt>Calibration</dt><dd>2,048 tokens &middot; zero customer data</dd>
+        </dl>
+        <hr class="rule">
+        <div class="sig">ed25519:9f41…c2ab &middot; turbopress/certificate@1 &middot; reproducible &middot; seed 0</div>
+        <div class="seal">Verified<br>KL&nbsp;0.079</div>
       </div>
-      <dl>
-        <dt>Model</dt><dd>Qwen3-0.6B (fine-tuned)</dd>
-        <dt>Method</dt><dd>TCQ S=64 + equalization</dd>
-        <dt>Rate</dt><dd><strong>4.02 bits/weight</strong></dd>
-        <dt>KL(fp&nbsp;&#8214;&nbsp;quant)</dt><dd><strong>0.079 nats</strong></dd>
-        <dt>Top-1 agreement</dt><dd>84.4%</dd>
-        <dt>Perplexity</dt><dd>29.11 &rarr; 30.63 (+5.2%)</dd>
-        <dt>Eval tokens</dt><dd>4,080 held-out</dd>
-        <dt>Calibration</dt><dd>2,048 tokens &middot; zero customer data</dd>
-      </dl>
-      <hr class="rule">
-      <div class="sig">ed25519:9f41…c2ab &middot; turbopress/certificate@1 &middot; reproducible &middot; seed 0</div>
-      <div class="seal">Verified<br>KL&nbsp;0.079</div>
     </div>
   </div>
 </div>
