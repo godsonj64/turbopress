@@ -131,10 +131,10 @@ agreement with fp16):
 
 | mode | decoder weight memory | tok/s | what it is |
 |---|---:|---:|---|
-| fp16 baseline | 202.5 MiB | 26.4 | — |
-| `cached` | 202.8 MiB (1.0x) | 25.6 | load-time decompression: decode once, fold the rotation into fp16 weights, free the packed streams |
-| `tiled` | **38.9 MiB (5.2x less)** | 2.5 | weights stay packed; row tiles decode per forward (pure PyTorch memory mode) |
-| `triton` | 39.8 MiB (4.0x less) | **226.5 (CUDA graph)** | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists. Kernel v5 (coalesced u32 word loads + register bit-slicing + split-D) reaches **kernel-level parity with fp16 GEMV** at 3-bit on real decoder shapes (0.87–1.02x, up to 122 GB/s on the packed stream), and the rotation runs as one fused kernel (Kronecker `H_A V H_B`, two tensor-core dots) instead of ~30 butterfly launches. End-to-end with vLLM-style CUDA-graph decode (`scripts/graph_decode_bench.py`): **226.5 tok/s vs fp16's 288.3 (0.79x) at 3.9x less weight memory**, greedy tokens bit-matching the eager loop. Eager (non-graph) tok/s is dominated by Triton's ~60 µs/launch Python dispatch — graph capture is the supported fast path |
+| fp16 baseline | 202.5 MiB | 26.4 eager / **288.3 CUDA graph** | — |
+| `cached` | 202.8 MiB (1.0x) | 25.6 eager | load-time decompression: decode once, fold the rotation into fp16 weights, free the packed streams |
+| `tiled` | **38.9 MiB (5.2x less)** | 2.5 eager | weights stay packed; row tiles decode per forward (pure PyTorch memory mode) |
+| `triton` | 51.9 MiB (3.9x less) | **226.5 CUDA graph** | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists (runtime decode stream at bits+1 per weight; disk stays at the true trellis rate). Kernel v5 (coalesced u32 word loads + register bit-slicing + split-D) reaches **kernel-level parity with fp16 GEMV** at 3-bit on real decoder shapes (0.87–1.02x, up to 122 GB/s on the packed stream), and the rotation runs as one fused kernel (Kronecker `H_A V H_B`, two tensor-core dots) instead of ~30 butterfly launches. End-to-end with vLLM-style CUDA-graph decode (`scripts/graph_decode_bench.py`): **226.5 tok/s vs fp16's 288.3 (0.79x) at 3.9x less weight memory**, greedy tokens bit-matching the eager loop. Eager (non-graph) tok/s is dominated by Triton's ~60 µs/launch Python dispatch — graph capture is the supported fast path |
 
 Reproduce: `python scripts/bench_runtime.py` -> `results/runtime_bench.json`;
 CUDA-graph decode comparison: `python scripts/graph_decode_bench.py`
@@ -516,14 +516,16 @@ Verified end-to-end: the packed artifact reloads to a bitwise-identical model
 
 ## Scope notes
 
-This is a *measurement* implementation: codes/signs are stored at true widths
-for accounting, but the forward pass materializes the dequantized weight (in the
-model dtype) rather than using packed low-bit kernels — numerics are identical to
-a packed kernel; only prototype memory/latency are not representative. Runs on
-CPU or a single GPU (`--device`/`--dtype`); everything is seeded and
-deterministic on a given device. Model sizes are bounded by holding the
-reference and quantized copies together in memory (Qwen3-0.6B fp16 fits an 8 GB
-card comfortably).
+The *research harness* (`real_model.py`, `harness.py`) materializes the
+dequantized weight in the model dtype for measurement — numerics identical to
+a packed kernel, memory/latency not representative. Since v0.4/v0.5 the
+*packed runtime* (`runtime.py` + `triton_kernel.py`) removes that caveat:
+weights stay packed in memory and the fused kernel runs at 0.79x fp16
+decode speed end-to-end (see the runtime table above). Everything runs on
+CPU or a single GPU (`--device`/`--dtype`), seeded and deterministic on a
+given device. Model sizes in the harness are bounded by holding the
+reference and quantized copies together in memory (Qwen3-0.6B fp16 fits an
+8 GB card comfortably).
 
 ## Hosted service (compression as a service)
 
@@ -570,12 +572,13 @@ plus the controlled, equal-budget measurements.
   elsewhere. Full references are in [`paper/references.bib`](https://github.com/godsonj64/turbopress/blob/main/paper/references.bib).
 
 **Limitations** (see the paper for detail): evidence is at ≤0.6B parameters (the
-2-bit ranking may shift at 7B+); comparisons are against our own controlled
-configurations, not released GPTQ/AWQ/QuIP#/QTIP checkpoints on WikiText-2 and
-zero-shot suites; the equilibration result rests on stated isotropic-error
-modeling assumptions (an approximation, not an exact theorem); and this is a
-measurement implementation — dequantized weights are materialized in the model
-dtype, so numerics but not latency match a packed kernel.
+2-bit ranking may shift at 7B+); quality comparisons are against our own
+controlled configurations, not released GPTQ/AWQ/QuIP#/QTIP checkpoints on
+WikiText-2 and zero-shot suites (a same-harness SOTA comparison suite now
+lives in `benchmarks/`); the equilibration results rest on stated
+isotropic-error / flat-pivot modeling assumptions (approximations, not exact
+theorems); and the packed Triton runtime is validated on one consumer GPU
+(RTX 5050) at batch 1 — server GPUs and batched serving are unmeasured.
 
 ## Citation
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "turbopress"
 version = "0.5.0"
-description = "Certified low-bit LLM weight quantization: rotation + quarter-power equilibration + trellis-coded quantization, with a KL/top-1/perplexity measurement harness."
+description = "Certified low-bit LLM weight quantization: rotation + derived-exponent equilibration + trellis-coded quantization with Hessian error feedback, a packed Triton runtime, and a KL/top-1/perplexity measurement harness."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
