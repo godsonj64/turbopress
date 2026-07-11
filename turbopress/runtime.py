@@ -264,7 +264,13 @@ class PackedTCQLinear(nn.Module):
             else:
                 memb = torch.zeros_like(pathb)
             levels = window_decode_levels(pathb, memb, self._trellis)
-            self.levels_packed = pack_le(levels, self.bits + 1)
+            packed = pack_le(levels, self.bits + 1)
+            # Pad rows to a 4-byte multiple: the kernel reads the stream as
+            # coalesced u32 words (8 codes per load at 3-bit), not bytes.
+            pad = (-packed.shape[1]) % 4
+            if pad:
+                packed = F.pad(packed, (0, pad))
+            self.levels_packed = packed.contiguous()
             for name in ("path_packed", "member_packed", "lut"):
                 setattr(self, name, None)
         elif mode == "cached":
@@ -301,12 +307,19 @@ class PackedTCQLinear(nn.Module):
             # Rotation already folded into the cached weights at load time.
             y = F.linear(x.to(compute_dtype), self._w_cache.to(compute_dtype))
         else:
-            z = _block_fwht(x.to(compute_dtype) * self.rot_scale.to(compute_dtype),
-                            self.block)
-            if self.mode == "triton":
+            if self.mode == "triton" and x.is_cuda and self.block >= 16:
+                # fused single-launch rotation: ~30 butterfly kernels -> 1
+                from turbopress.triton_kernel import fwht_scale, packed_gemv
+                z = fwht_scale(x, self.rot_scale, self.block)
+                y = packed_gemv(z, self)
+            elif self.mode == "triton":
                 from turbopress.triton_kernel import packed_gemv
+                z = _block_fwht(x.to(compute_dtype) * self.rot_scale.to(compute_dtype),
+                                self.block)
                 y = packed_gemv(z, self)
             else:  # tiled
+                z = _block_fwht(x.to(compute_dtype) * self.rot_scale.to(compute_dtype),
+                                self.block)
                 flat = z.reshape(-1, self.in_features)
                 y = torch.empty(flat.shape[0], self.out_features,
                                 dtype=compute_dtype, device=z.device)

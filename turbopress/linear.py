@@ -41,7 +41,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from turbopress.gptq import ldlq_quantize_rows, rotated_hessian
+from turbopress.gptq import ldlq_quantize_rows, ldlq_tcq_quantize_rows, rotated_hessian
 from turbopress.hadamard import RandomizedOrthogonal
 from turbopress.qjl import QJLSketch, build_qjl_sketch, correction_matrix
 from turbopress.quantizer import quantize_rows
@@ -122,6 +122,7 @@ class QJLCorrectedLinear(nn.Module):
         n_states: int = 8,
         col_scale: Tensor | None = None,
         equil_mode: str = "quarter",
+        equil_alpha: float = 0.25,
         error_feedback: bool = False,
         hessian: Tensor | None = None,
     ) -> "QJLCorrectedLinear":
@@ -147,11 +148,8 @@ class QJLCorrectedLinear(nn.Module):
             raise ValueError(f"method must be 'scalar' or 'tcq', got {method!r}")
         if equil_mode not in ("quarter", "awq"):
             raise ValueError(f"equil_mode must be 'quarter' or 'awq', got {equil_mode!r}")
-        if error_feedback:
-            if method != "scalar":
-                raise ValueError("error_feedback is only supported for method='scalar'")
-            if hessian is None:
-                raise ValueError("error_feedback=True requires a hessian")
+        if error_feedback and hessian is None:
+            raise ValueError("error_feedback=True requires a hessian")
 
         in_features = linear.in_features
         out_features = linear.out_features
@@ -169,13 +167,23 @@ class QJLCorrectedLinear(nn.Module):
             if not torch.all(torch.isfinite(col_scale)) or torch.any(col_scale <= 0):
                 raise ValueError("col_scale entries must be finite and positive")
             if equil_mode == "quarter":
-                # Rotation-aware optimal fold: s_j = (m_j / c_j)^(1/4) with
-                # m_j = E[x_j^2] (col_scale = sqrt(m_j)) and c_j = ||W_{:,j}||^2.
+                # Generalized rotation-aware fold: s_j = m_j^a / c_j^(1/2 - a)
+                # with m_j = E[x_j^2] (col_scale = sqrt(m_j)), c_j = ||W_{:,j}||^2
+                # and a = equil_alpha. a = 1/4 is the Prop-1 optimum for a
+                # feedback-free rotated quantizer, s_j = (m_j/c_j)^(1/4);
+                # a = 0 is the Prop-2 ideal-error-feedback optimum, pure
+                # column normalization s_j = 1/||W_{:,j}|| (the determinant
+                # bound makes activation statistics drop out when LDLQ
+                # absorbs all linearly-predictable structure).
                 # Column norms are floored to keep the fold bounded on dead cols.
+                if not 0.0 <= equil_alpha <= 0.5:
+                    raise ValueError(
+                        f"equil_alpha must be in [0, 0.5], got {equil_alpha}"
+                    )
                 col_norm = w.norm(dim=0)
                 floor = max(0.05 * float(col_norm.pow(2).mean().sqrt()), 1e-12)
                 col_norm = col_norm.clamp_min(floor)
-                s = (col_scale / col_norm).sqrt()
+                s = col_scale.pow(2 * equil_alpha) / col_norm.pow(1 - 2 * equil_alpha)
             else:  # "awq": SmoothQuant/AWQ square-root activation fold, s_j =
                 # sqrt(E[x_j^2]) (ignores the weight column norm), normalized to
                 # unit geometric mean. This is the baseline Prop. 1 argues against.
@@ -189,7 +197,15 @@ class QJLCorrectedLinear(nn.Module):
         w_rot = rotation(w)  # rows of W R^T, i.e. each row rotated by R
 
         if method == "tcq":
-            quantized = tcq_quantize_rows(w_rot, bits=bits, n_states=n_states)
+            if error_feedback:
+                # Block-LDLQ over the trellis (QTIP-style): Hessian-aware
+                # error feedback with the trellis as the block quantizer.
+                hz = rotated_hessian(hessian.to(device), rotation, inv_col_scale)
+                quantized = ldlq_tcq_quantize_rows(
+                    w_rot, hz, bits=bits, n_states=n_states
+                )
+            else:
+                quantized = tcq_quantize_rows(w_rot, bits=bits, n_states=n_states)
             codes = quantized.level_codes
         elif error_feedback:
             hz = rotated_hessian(hessian.to(device), rotation, inv_col_scale)

@@ -1,0 +1,106 @@
+{
+  "settings": {
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "seqs": 16,
+    "calib_seqs": 8,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/real_model_ef_smollm135m.json",
+    "data_dir": "data",
+    "device": "cuda",
+    "dtype": "float16",
+    "config_set": "ef"
+  },
+  "ppl_fp": 13.850025,
+  "results": [
+    {
+      "label": "tcq 2b S=64 +eq",
+      "bits_per_weight": 2.0463,
+      "n_replaced": 210,
+      "mean_kl": 2.147442,
+      "top1_agreement": 0.298529,
+      "ppl_fp": 13.850025,
+      "ppl_q": 130.576421,
+      "n_tokens": 4080,
+      "seconds": 126.6
+    },
+    {
+      "label": "gptq 2b +eq",
+      "bits_per_weight": 2.0461,
+      "n_replaced": 210,
+      "mean_kl": 3.7203,
+      "top1_agreement": 0.20098,
+      "ppl_fp": 13.850025,
+      "ppl_q": 649.03715,
+      "n_tokens": 4080,
+      "seconds": 40.4
+    },
+    {
+      "label": "tcq+ef 2b S=64 +eq",
+      "bits_per_weight": 2.0463,
+      "n_replaced": 210,
+      "mean_kl": 2.24376,
+      "top1_agreement": 0.317157,
+      "ppl_fp": 13.850025,
+      "ppl_q": 141.540223,
+      "n_tokens": 4080,
+      "seconds": 63.3
+    },
+    {
+      "label": "tcq 3b S=64 +eq",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.335713,
+      "top1_agreement": 0.695098,
+      "ppl_fp": 13.850025,
+      "ppl_q": 18.643334,
+      "n_tokens": 4080,
+      "seconds": 129.5
+    },
+    {
+      "label": "gptq 3b +eq",
+      "bits_per_weight": 3.0463,
+      "n_replaced": 210,
+      "mean_kl": 0.517205,
+      "top1_agreement": 0.655147,
+      "ppl_fp": 13.850025,
+      "ppl_q": 22.972193,
+      "n_tokens": 4080,
+      "seconds": 39.7
+    },
+    {
+      "label": "tcq+ef 3b S=64 +eq",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.350525,
+      "top1_agreement": 0.71299,
+      "ppl_fp": 13.850025,
+      "ppl_q": 19.651951,
+      "n_tokens": 4080,
+      "seconds": 62.5
+    },
+    {
+      "label": "tcq 4b S=64 +eq",
+      "bits_per_weight": 4.047,
+      "n_replaced": 210,
+      "mean_kl": 0.075151,
+      "top1_agreement": 0.851471,
+      "ppl_fp": 13.850025,
+      "ppl_q": 15.012832,
+      "n_tokens": 4080,
+      "seconds": 126.4
+    },
+    {
+      "label": "tcq+ef 4b S=64 +eq",
+      "bits_per_weight": 4.047,
+      "n_replaced": 210,
+      "mean_kl": 0.094935,
+      "top1_agreement": 0.858088,
+      "ppl_fp": 13.850025,
+      "ppl_q": 15.007829,
+      "n_tokens": 4080,
+      "seconds": 62.8
+    }
+  ]
+}

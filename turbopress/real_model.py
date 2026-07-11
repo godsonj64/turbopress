@@ -62,6 +62,7 @@ class RealConfig:
     n_states: int = 8
     equilibrate: bool = False
     equil_mode: str = "quarter"
+    equil_alpha: float = 0.25
     error_feedback: bool = False
 
 
@@ -78,6 +79,31 @@ DEFAULT_CONFIGS = [
     RealConfig("gptq 2b +eq", bits=2, equilibrate=True, error_feedback=True),
     RealConfig("gptq 3b +eq", bits=3, equilibrate=True, error_feedback=True),
     RealConfig("gptq 4b +eq", bits=4, equilibrate=True, error_feedback=True),
+    # Round 4: block-LDLQ error feedback OVER the trellis (QTIP-style) --
+    # the trellis codes each column block jointly while LDLQ feeds the block's
+    # Hessian-weighted error forward. Same rate and stored form as tcq.
+    RealConfig("tcq+ef 2b S=64 +eq", bits=2, method="tcq", n_states=64,
+               equilibrate=True, error_feedback=True),
+    RealConfig("tcq+ef 3b S=64 +eq", bits=3, method="tcq", n_states=64,
+               equilibrate=True, error_feedback=True),
+    RealConfig("tcq+ef 4b S=64 +eq", bits=4, method="tcq", n_states=64,
+               equilibrate=True, error_feedback=True),
+]
+
+# Focused head-to-head for the round-4 combination: the two prior winners vs
+# the combined method at the bit-widths where they differ most.
+EF_CONFIGS = [
+    RealConfig("tcq 2b S=64 +eq", bits=2, method="tcq", n_states=64, equilibrate=True),
+    RealConfig("gptq 2b +eq", bits=2, equilibrate=True, error_feedback=True),
+    RealConfig("tcq+ef 2b S=64 +eq", bits=2, method="tcq", n_states=64,
+               equilibrate=True, error_feedback=True),
+    RealConfig("tcq 3b S=64 +eq", bits=3, method="tcq", n_states=64, equilibrate=True),
+    RealConfig("gptq 3b +eq", bits=3, equilibrate=True, error_feedback=True),
+    RealConfig("tcq+ef 3b S=64 +eq", bits=3, method="tcq", n_states=64,
+               equilibrate=True, error_feedback=True),
+    RealConfig("tcq 4b S=64 +eq", bits=4, method="tcq", n_states=64, equilibrate=True),
+    RealConfig("tcq+ef 4b S=64 +eq", bits=4, method="tcq", n_states=64,
+               equilibrate=True, error_feedback=True),
 ]
 
 # Controlled equilibration-exponent comparison (Proposition 1): identical
@@ -94,6 +120,24 @@ EQUIL_CONFIGS = [
     RealConfig("scalar 4b no-eq", bits=4),
     RealConfig("scalar 4b awq-sqrt", bits=4, equilibrate=True, equil_mode="awq"),
     RealConfig("scalar 4b quarter", bits=4, equilibrate=True, equil_mode="quarter"),
+]
+
+# Proposition 2 sweep: does error feedback move the optimal equilibration
+# exponent? s_j = m_j^a / c_j^(1/2-a). Theory: without EF the optimum is
+# a = 1/4 (Prop 1); with ideal EF the activation term drops out and the
+# optimum slides to a = 0 (pure column normalization). The no-EF rows are
+# the control; their optimum should stay at 1/4.
+PROP2_CONFIGS = [
+    cfg
+    for a in (0.0, 0.125, 0.25)
+    for cfg in (
+        RealConfig(f"tcq 3b a={a:g}", bits=3, method="tcq", n_states=64,
+                   equilibrate=True, equil_alpha=a),
+        RealConfig(f"tcq+ef 3b a={a:g}", bits=3, method="tcq", n_states=64,
+                   equilibrate=True, equil_alpha=a, error_feedback=True),
+        RealConfig(f"tcq+ef 2b a={a:g}", bits=2, method="tcq", n_states=64,
+                   equilibrate=True, equil_alpha=a, error_feedback=True),
+    )
 ]
 
 # The QJL/stochastic configs from the first A/B (verdict: refuted; see README)
@@ -269,6 +313,7 @@ def quantize_model_copy(
                 n_states=cfg.n_states,
                 col_scale=col_scale,
                 equil_mode=cfg.equil_mode,
+                equil_alpha=cfg.equil_alpha,
                 error_feedback=cfg.error_feedback,
                 hessian=hessian,
             )
@@ -397,12 +442,20 @@ def main(argv: list[str] | None = None) -> None:
         "--dtype", default="float16", choices=["float16", "bfloat16", "float32"]
     )
     parser.add_argument(
-        "--config-set", default="default", choices=["default", "equil"],
+        "--config-set", default="default",
+        choices=["default", "equil", "ef", "prop2"],
         help="'default' = full method sweep; 'equil' = AWQ-sqrt vs quarter-power "
-        "equilibration baseline (Proposition 1).",
+        "equilibration baseline (Proposition 1); 'ef' = focused tcq vs gptq vs "
+        "tcq+ef head-to-head (round 4); 'prop2' = equilibration-exponent sweep "
+        "with/without error feedback (Proposition 2).",
     )
     args = parser.parse_args(argv)
-    configs = DEFAULT_CONFIGS if args.config_set == "default" else EQUIL_CONFIGS
+    configs = {
+        "default": DEFAULT_CONFIGS,
+        "equil": EQUIL_CONFIGS,
+        "ef": EF_CONFIGS,
+        "prop2": PROP2_CONFIGS,
+    }[args.config_set]
 
     from transformers import AutoModelForCausalLM, AutoTokenizer
 

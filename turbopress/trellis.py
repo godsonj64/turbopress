@@ -125,11 +125,21 @@ def _subset_costs(z: Tensor, codebook: Tensor) -> tuple[Tensor, Tensor]:
     return members, costs
 
 
-def _viterbi(z: Tensor, codebook: Tensor, trellis: Trellis) -> tuple[Tensor, Tensor, Tensor]:
-    """Minimum-distortion trellis path per row (start state 0).
+def _viterbi(
+    z: Tensor,
+    codebook: Tensor,
+    trellis: Trellis,
+    start_state: Tensor | None = None,
+) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    """Minimum-distortion trellis path per row.
 
-    Returns ``(level_codes, path_bits, member_codes)``, each [n, d] uint8.
-    Runs entirely on ``z.device`` (the trellis branch tables are moved there).
+    Each row's path begins in ``start_state`` (int64 [n]; default state 0,
+    the stored-stream convention). Returns ``(level_codes, path_bits,
+    member_codes, end_state)``; the first three are [n, d] uint8. Feeding a
+    call's ``end_state`` into the next call encodes one continuous trellis
+    path, so concatenated path bits decode with the standard sequential walk
+    from state 0 -- the storage format is unchanged. Runs entirely on
+    ``z.device`` (the trellis branch tables are moved there).
     """
     n, d = z.shape
     dev = z.device
@@ -138,7 +148,10 @@ def _viterbi(z: Tensor, codebook: Tensor, trellis: Trellis) -> tuple[Tensor, Ten
     members, costs = _subset_costs(z, codebook)
 
     alpha = torch.full((n, trellis.n_states), torch.inf, device=dev)
-    alpha[:, 0] = 0.0
+    if start_state is None:
+        alpha[:, 0] = 0.0
+    else:
+        alpha[torch.arange(n, device=dev), start_state.to(dev).long()] = 0.0
     bp = torch.empty(n, d, trellis.n_states, dtype=torch.bool, device=dev)
     for t in range(d):
         c = costs[:, t, :]
@@ -153,6 +166,7 @@ def _viterbi(z: Tensor, codebook: Tensor, trellis: Trellis) -> tuple[Tensor, Ten
     member_codes = torch.empty(n, d, dtype=torch.uint8, device=dev)
     rows = torch.arange(n, device=dev)
     state = alpha.argmin(dim=1)
+    end_state = state.clone()
     for t in range(d - 1, -1, -1):
         take1 = bp[rows, t, state]
         prev = torch.where(take1, prev1[state], prev0[state])
@@ -162,7 +176,7 @@ def _viterbi(z: Tensor, codebook: Tensor, trellis: Trellis) -> tuple[Tensor, Ten
         member_codes[:, t] = member.to(torch.uint8)
         level_codes[:, t] = (member * _N_SUBSETS + subset).to(torch.uint8)
         state = prev
-    return level_codes, path_bits, member_codes
+    return level_codes, path_bits, member_codes, end_state
 
 
 def decode_levels(
@@ -223,7 +237,7 @@ def tcq_optimized_codebook(
     z = torch.randn(n_rows, n_samples // n_rows, generator=gen)
 
     for _ in range(iters):
-        level_codes, _, _ = _viterbi(z, codebook, trellis)
+        level_codes, _, _, _ = _viterbi(z, codebook, trellis)
         flat_codes = level_codes.long().flatten()
         flat_z = z.flatten()
         n_levels = codebook.numel()
@@ -281,14 +295,14 @@ def tcq_quantize_rows(
     nonzero = scales > 0
     safe = torch.where(nonzero, scales, torch.ones_like(scales))
 
-    level_codes, path_bits, member_codes = _viterbi(w32 / safe[:, None], codebook, trellis)
+    level_codes, path_bits, member_codes, _ = _viterbi(w32 / safe[:, None], codebook, trellis)
     for _ in range(scale_iters):
         q = codebook[level_codes.long()]
         num = (w32 * q).sum(dim=1)
         den = (q * q).sum(dim=1)
         new_scale = torch.where(den > 0, num / den.clamp_min(1e-30), safe)
         safe = torch.where(new_scale > 0, new_scale, safe)
-        level_codes, path_bits, member_codes = _viterbi(
+        level_codes, path_bits, member_codes, _ = _viterbi(
             w32 / safe[:, None], codebook, trellis
         )
 

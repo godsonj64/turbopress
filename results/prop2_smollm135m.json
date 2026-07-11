@@ -1,0 +1,117 @@
+{
+  "settings": {
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "seqs": 16,
+    "calib_seqs": 8,
+    "seqlen": 256,
+    "batch": 4,
+    "seed": 0,
+    "out": "results/prop2_smollm135m.json",
+    "data_dir": "data",
+    "device": "cuda",
+    "dtype": "float16",
+    "config_set": "prop2"
+  },
+  "ppl_fp": 14.063868,
+  "results": [
+    {
+      "label": "tcq 3b a=0",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.758061,
+      "top1_agreement": 0.561765,
+      "ppl_fp": 14.063868,
+      "ppl_q": 30.195246,
+      "n_tokens": 4080,
+      "seconds": 476.4
+    },
+    {
+      "label": "tcq+ef 3b a=0",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.430867,
+      "top1_agreement": 0.68652,
+      "ppl_fp": 14.063868,
+      "ppl_q": 21.922275,
+      "n_tokens": 4080,
+      "seconds": 437.4
+    },
+    {
+      "label": "tcq+ef 2b a=0",
+      "bits_per_weight": 2.0463,
+      "n_replaced": 210,
+      "mean_kl": 2.138589,
+      "top1_agreement": 0.32598,
+      "ppl_fp": 14.063868,
+      "ppl_q": 125.362996,
+      "n_tokens": 4080,
+      "seconds": 370.9
+    },
+    {
+      "label": "tcq 3b a=0.125",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.358124,
+      "top1_agreement": 0.693627,
+      "ppl_fp": 14.063868,
+      "ppl_q": 19.785946,
+      "n_tokens": 4080,
+      "seconds": 310.5
+    },
+    {
+      "label": "tcq+ef 3b a=0.125",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.276141,
+      "top1_agreement": 0.738725,
+      "ppl_fp": 14.063868,
+      "ppl_q": 18.416071,
+      "n_tokens": 4080,
+      "seconds": 62.3
+    },
+    {
+      "label": "tcq+ef 2b a=0.125",
+      "bits_per_weight": 2.0463,
+      "n_replaced": 210,
+      "mean_kl": 1.312282,
+      "top1_agreement": 0.454167,
+      "ppl_fp": 14.063868,
+      "ppl_q": 52.06351,
+      "n_tokens": 4080,
+      "seconds": 61.9
+    },
+    {
+      "label": "tcq 3b a=0.25",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.320894,
+      "top1_agreement": 0.698775,
+      "ppl_fp": 14.063868,
+      "ppl_q": 18.516377,
+      "n_tokens": 4080,
+      "seconds": 118.8
+    },
+    {
+      "label": "tcq+ef 3b a=0.25",
+      "bits_per_weight": 3.0465,
+      "n_replaced": 210,
+      "mean_kl": 0.324514,
+      "top1_agreement": 0.73799,
+      "ppl_fp": 14.063868,
+      "ppl_q": 19.591717,
+      "n_tokens": 4080,
+      "seconds": 63.2
+    },
+    {
+      "label": "tcq+ef 2b a=0.25",
+      "bits_per_weight": 2.0463,
+      "n_replaced": 210,
+      "mean_kl": 1.785204,
+      "top1_agreement": 0.375245,
+      "ppl_fp": 14.063868,
+      "ppl_q": 84.436234,
+      "n_tokens": 4080,
+      "seconds": 66.7
+    }
+  ]
+}

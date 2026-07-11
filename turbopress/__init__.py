@@ -19,7 +19,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 
 # name -> submodule that defines it (imported on first access).
 _LAZY = {
@@ -28,6 +28,7 @@ _LAZY = {
     "measure_sensitivity": "turbopress.allocate",
     "lloyd_max_gaussian": "turbopress.codebooks",
     "ldlq_quantize_rows": "turbopress.gptq",
+    "ldlq_tcq_quantize_rows": "turbopress.gptq",
     "rotated_hessian": "turbopress.gptq",
     "RandomizedOrthogonal": "turbopress.hadamard",
     "fwht": "turbopress.hadamard",
@@ -63,7 +64,11 @@ def __dir__() -> list[str]:
 if TYPE_CHECKING:  # help type checkers / IDEs resolve the lazy names
     from turbopress.allocate import allocate_bits, build_mixed_model, measure_sensitivity
     from turbopress.codebooks import lloyd_max_gaussian
-    from turbopress.gptq import ldlq_quantize_rows, rotated_hessian
+    from turbopress.gptq import (
+        ldlq_quantize_rows,
+        ldlq_tcq_quantize_rows,
+        rotated_hessian,
+    )
     from turbopress.hadamard import RandomizedOrthogonal, fwht
     from turbopress.linear import QJLCorrectedLinear
     from turbopress.qjl import QJLSketch, build_qjl_sketch, estimate_inner_products

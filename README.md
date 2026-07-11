@@ -10,7 +10,7 @@ LLM weight-quantization pipeline built on, and measured against, the
 primitives of [TurboQuant (arXiv:2504.19874)](https://arxiv.org/abs/2504.19874)
 (randomized rotation -> optimal scalar quantization -> QJL residual sketch).
 
-Two development rounds, both driven by measurement:
+Four development rounds, all driven by measurement:
 
 * **Round 1 (stage 4 test):** does TurboQuant's unbiased QJL residual
   correction pay off for *weights*? **No** — refuted synthetically and on a
@@ -24,6 +24,15 @@ Two development rounds, both driven by measurement:
   (Hessian-aware sequential rounding, the biggest known PTQ gain the pipeline
   was missing); and added **per-layer bit allocation** by measured KL
   sensitivity. Results immediately below.
+* **Round 4 (v0.5.0 — compose the winners + Proposition 2):** **block-LDLQ
+  error feedback *over* the trellis** (QTIP-style; format-identical
+  artifacts), and a new analytical result — **Proposition 2**: error feedback
+  shifts the optimal equilibration exponent from `(m/c)^{1/4}` toward pure
+  column normalization; measured optimum α = ⅛, confirmed with a controlled
+  sweep. Net effect at equal rate on SmolLM2-135M: **KL −14.6%, top-1
+  +3.8 pts, ppl −8.1%** vs v0.4.2, plus a **16× faster GPU trellis encoder**
+  and a packed **runtime at 0.79× fp16 speed with 3.9× less weight memory**
+  under CUDA-graph decoding. Details in the Round 4 section below.
 
 ## Paper
 
@@ -125,9 +134,61 @@ agreement with fp16):
 | fp16 baseline | 202.5 MiB | 26.4 | — |
 | `cached` | 202.8 MiB (1.0x) | 25.6 | load-time decompression: decode once, fold the rotation into fp16 weights, free the packed streams |
 | `tiled` | **38.9 MiB (5.2x less)** | 2.5 | weights stay packed; row tiles decode per forward (pure PyTorch memory mode) |
-| `triton` | 39.8 MiB (4.0x less) | — | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists. Validated on an RTX 5050 via the `triton-windows` wheel (correctness + memory); tensor-core `tl.dot` reduction landed in v0.4.1 and speed tuning is ongoing — batch-1 GEMV is bandwidth-bound with a theoretical ceiling of **16/bits x** over fp16 |
+| `triton` | 39.8 MiB (4.0x less) | **226.5 (CUDA graph)** | fused decode-inside-GEMV (`turbopress/triton_kernel.py`): the fp16 matrix never exists. Kernel v5 (coalesced u32 word loads + register bit-slicing + split-D) reaches **kernel-level parity with fp16 GEMV** at 3-bit on real decoder shapes (0.87–1.02x, up to 122 GB/s on the packed stream), and the rotation runs as one fused kernel (Kronecker `H_A V H_B`, two tensor-core dots) instead of ~30 butterfly launches. End-to-end with vLLM-style CUDA-graph decode (`scripts/graph_decode_bench.py`): **226.5 tok/s vs fp16's 288.3 (0.79x) at 3.9x less weight memory**, greedy tokens bit-matching the eager loop. Eager (non-graph) tok/s is dominated by Triton's ~60 µs/launch Python dispatch — graph capture is the supported fast path |
 
-Reproduce: `python scripts/bench_runtime.py` -> `results/runtime_bench.json`.
+Reproduce: `python scripts/bench_runtime.py` -> `results/runtime_bench.json`;
+CUDA-graph decode comparison: `python scripts/graph_decode_bench.py`
+(SmolLM2-135M@3b, RTX 5050: fp16 288.3 tok/s vs packed **226.5 tok/s** at
+3.9x less weight memory; greedy tokens verified identical to the eager loop).
+
+## Round 4 (v0.5.0): error feedback over the trellis + Proposition 2
+
+Round 3 left the two strongest methods separate. Round 4 composes them:
+columns are trellis-coded in blocks (the Viterbi encoder **chains its state
+across blocks**, so the packed bit-stream stays format-identical to plain
+TCQ) while each block's Hessian-weighted error feeds forward through the
+block-LDL factors of `H_z⁻¹` (`ldlq_tcq_quantize_rows`; `TP_ERROR_FEEDBACK`
+in the pipeline, with per-block sequential-GPTQ Hessian calibration).
+
+**Proposition 2.** Under LDLQ the equilibration objective's activation term
+`tr(H_ζ)` becomes `tr(D_L)` — only the *innovation* variance feedback cannot
+exploit. Via `tr(D_L) ≥ d·det(H_ζ)^{1/d}` and `det(H_ζ) = det(H)/Π s_j²`,
+the ideal-EF optimal fold is `s_j ∝ 1/‖W_:,j‖` — activation statistics drop
+out entirely. The three regimes lie on the line α+β = ½ for
+`s_j = m_j^α c_j^{-β}`: AWQ (½, 0) → Prop 1 (¼, ¼) → Prop 2 ideal (0, ½).
+Prediction: EF shifts the optimum from ¼ toward 0; the no-EF control stays.
+**Confirmed** (SmolLM2-135M, KL(fp‖q), 4,080 held-out tokens):
+
+| KL(fp‖q) | α = 0 | α = ⅛ | α = ¼ | optimum |
+|---|---:|---:|---:|---|
+| tcq 3b (control, no EF) | 0.758 | 0.358 | **0.321** | ¼ — stays (Prop 1) |
+| tcq+ef 3b | 0.431 | **0.276** | 0.325 | ⅛ — shifted |
+| tcq+ef 2b | 2.139 | **1.312** | 1.785 | ⅛ — shifted |
+
+At the shifted exponent, tcq+ef beats the best feedback-free configuration
+by **14% KL at 3 bits and 36% at 2 bits** at equal rate — the apparent
+tcq/tcq+ef tie at α = ¼ was an exponent artifact. The pipeline defaults to
+α = ⅛ with EF on, ¼ off (`TP_EQUIL_ALPHA` overrides). End-to-end pipeline
+ladder at identical settings (SmolLM2-135M, 3-bit, S=16, same eval tokens,
+same 96 MiB artifact, bit-exact reload self-test at every step):
+
+| pipeline | KL(fp‖q) | top-1 | ppl |
+|---|---:|---:|---:|
+| v0.4.2 (no EF, α=¼) | 0.3526 | 0.677 | 30.90 |
+| + block-LDLQ over the trellis | 0.3331 | 0.692 | 29.29 |
+| **+ Prop-2 exponent (v0.5.0)** | **0.3011** | **0.715** | **28.39** |
+
+Two negative results worth recording: (1) **least-squares scale refit
+destroys error feedback at 2 bits** (KL 2.24 → 4.19: the refit fits scales
+to feedback-compensated codes, the mis-fit clips the small codebook, and the
+feedback amplifies the error) — the EF path uses fixed pre-encode scales;
+(2) an explicit batch-1 FMA-reduction GEMV path measured *slower* than
+masked tensor-core dots on Blackwell — reverted. Speed: the trellis encoder
+now runs on the GPU when the working set fits (**16.3× faster** at S=64,
+6.33 s → 0.39 s per 1536×576 matrix), so best-quality S=64 encodes of 4B
+models drop from hours to minutes. Reproduce:
+`python -m turbopress.real_model --config-set prop2` and `--config-set ef`;
+runtime numbers via `python scripts/graph_decode_bench.py`.
 
 ## Round 3 results (Qwen3-0.6B, GPU, all 196 block linears quantized)
 
@@ -381,11 +442,12 @@ negative result stands in both settings.
   the bit-stream round-trip proof.
 - `turbopress/qjl.py` — 1-bit QJL residual sketch; unbiased inner-product
   estimator with proof and variance bound in the docstring.
-- `turbopress/gptq.py` — GPTQ/LDLQ error feedback for the rotated scalar
-  quantizer: `rotated_hessian` maps a raw activation Hessian into the
-  rotated/equilibrated coordinates, and `ldlq_quantize_rows` runs the
-  Hessian-weighted sequential rounding. Reduces to plain nearest rounding when
-  the Hessian is diagonal (proven in tests).
+- `turbopress/gptq.py` — GPTQ/LDLQ error feedback: `rotated_hessian` maps a
+  raw activation Hessian into the rotated/equilibrated coordinates,
+  `ldlq_quantize_rows` runs the Hessian-weighted sequential rounding for the
+  scalar quantizer, and `ldlq_tcq_quantize_rows` runs **block-LDLQ over the
+  trellis** (chained-state Viterbi; format-identical to plain TCQ; reduces
+  to it exactly for a diagonal Hessian — proven in tests).
 - `turbopress/linear.py` — `QJLCorrectedLinear.from_linear(nn.Linear, bits,
   sketch_k, seed, rounding, method="scalar"|"tcq", n_states, col_scale,
   error_feedback, hessian)`, a drop-in quantized layer with rotation-aware
@@ -403,7 +465,7 @@ negative result stands in both settings.
   fp) and measures KL / top-1 / perplexity against the reference model on real
   text. Runs on GPU (`--device cuda --dtype float16`) and any Llama/Qwen-family
   model; collects calibration scales + Hessians as needed.
-- `tests/` — 124 tests: exact math identities, statistical unbiasedness and
+- `tests/` — 135 tests: exact math identities, statistical unbiasedness and
   variance-scaling tests with explicit confidence bounds, trellis round-trip
   and rate-distortion checks (CPU + CUDA), equilibration optimality checks,
   LDLQ Hessian-loss-reduction and diagonal-Hessian equivalence, greedy
@@ -427,7 +489,7 @@ print(qlayer.storage_report())  # true bits/weight incl. scales + equil
 ```
 
 ```bash
-python -m pytest tests                                    # full suite (124 tests)
+python -m pytest tests                                    # full suite (135 tests)
 python -m turbopress.harness                              # synthetic experiments, ~4 s on CPU
 python -m turbopress.real_model --model Qwen/Qwen3-0.6B   # GPU sweep incl. TCQ + GPTQ, ~20 min
 python -m turbopress.allocate  --model Qwen/Qwen3-0.6B    # per-layer bit allocation vs uniform

@@ -75,6 +75,11 @@ def config_from_env() -> dict:
         "OUT_DIR": _cfg("OUT_DIR", "turbopress_out"),
         "DEVICE": _cfg("DEVICE", "cuda" if torch.cuda.is_available() else "cpu"),
         "SELF_TEST": _cfg("SELF_TEST", True),   # reload artifact & verify logits match
+        "ERROR_FEEDBACK": _cfg("ERROR_FEEDBACK", True),  # block-LDLQ over the trellis
+        # Equilibration exponent a in s_j = m_j^a / c_j^(1/2-a). Prop 1 gives
+        # a = 1/4 for a feedback-free rotated quantizer; with error feedback
+        # the optimum shifts toward 0 (Prop 2) -- measured best at 1/8.
+        "EQUIL_ALPHA": _cfg("EQUIL_ALPHA", -1.0),  # -1 = auto by ERROR_FEEDBACK
         "DEMO_PROMPT": _cfg("DEMO_PROMPT", "The three most important ideas in physics are"),
     }
 
@@ -201,58 +206,72 @@ class Trellis:
         self.sub1 = sub[self.prev1, bit]
 
 
-def _viterbi(z: Tensor, codebook: Tensor, trellis: Trellis):
-    """Min-distortion trellis path per row (start state 0). z: [m, d] fp32 CPU.
+def _viterbi(z: Tensor, codebook: Tensor, trellis: Trellis, start_state: Tensor | None = None):
+    """Min-distortion trellis path per row. z: [m, d] fp32 (any device).
 
-    Returns (level_codes, path_bits, member_codes), each [m, d] uint8.
+    Each row's path begins in ``start_state`` (default state 0). Returns
+    (level_codes, path_bits, member_codes, end_state); chaining calls with
+    the returned end state encodes one continuous path whose concatenated
+    bits decode with the standard sequential walk from state 0, so the
+    stored format is unchanged. Runs on ``z.device``.
     """
     m, d = z.shape
+    dev = z.device
     S = trellis.n_states
-    members = torch.empty(m, d, 4, dtype=torch.int64)
-    costs = torch.empty(m, d, 4, dtype=torch.float32)
+    prev0, prev1 = trellis.prev0.to(dev), trellis.prev1.to(dev)
+    tsub0, tsub1 = trellis.sub0.to(dev), trellis.sub1.to(dev)
+    members = torch.empty(m, d, 4, dtype=torch.int64, device=dev)
+    costs = torch.empty(m, d, 4, dtype=torch.float32, device=dev)
     for j in range(4):
         sub_cb = codebook[j::4]
         if sub_cb.numel() == 1:
-            mem = torch.zeros(m, d, dtype=torch.int64)
+            mem = torch.zeros(m, d, dtype=torch.int64, device=dev)
         else:
             thr = (sub_cb[:-1] + sub_cb[1:]) / 2
             mem = torch.bucketize(z.contiguous(), thr)
         members[:, :, j] = mem
         costs[:, :, j] = (z - sub_cb[mem]).pow(2)
-    alpha = torch.full((m, S), math.inf)
-    alpha[:, 0] = 0.0
-    bp = torch.empty(m, d, S, dtype=torch.bool)
+    alpha = torch.full((m, S), math.inf, device=dev)
+    if start_state is None:
+        alpha[:, 0] = 0.0
+    else:
+        alpha[torch.arange(m, device=dev), start_state.to(dev).long()] = 0.0
+    bp = torch.empty(m, d, S, dtype=torch.bool, device=dev)
     for t in range(d):
         c = costs[:, t, :]
-        c0 = alpha[:, trellis.prev0] + c[:, trellis.sub0]
-        c1 = alpha[:, trellis.prev1] + c[:, trellis.sub1]
+        c0 = alpha[:, prev0] + c[:, tsub0]
+        c1 = alpha[:, prev1] + c[:, tsub1]
         take1 = c1 < c0
         alpha = torch.where(take1, c1, c0)
         bp[:, t, :] = take1
-    rows = torch.arange(m)
+    rows = torch.arange(m, device=dev)
     state = alpha.argmin(dim=1)
-    level = torch.empty(m, d, dtype=torch.uint8)
-    pathb = torch.empty(m, d, dtype=torch.uint8)
-    memb = torch.empty(m, d, dtype=torch.uint8)
+    end_state = state.clone()
+    level = torch.empty(m, d, dtype=torch.uint8, device=dev)
+    pathb = torch.empty(m, d, dtype=torch.uint8, device=dev)
+    memb = torch.empty(m, d, dtype=torch.uint8, device=dev)
     for t in range(d - 1, -1, -1):
         take1 = bp[rows, t, state]
-        prev = torch.where(take1, trellis.prev1[state], trellis.prev0[state])
-        sub = torch.where(take1, trellis.sub1[state], trellis.sub0[state])
+        prev = torch.where(take1, prev1[state], prev0[state])
+        sub = torch.where(take1, tsub1[state], tsub0[state])
         mem = members[rows, t, sub]
         pathb[:, t] = (state & 1).to(torch.uint8)
         memb[:, t] = mem.to(torch.uint8)
         level[:, t] = (mem * 4 + sub).to(torch.uint8)
         state = prev
-    return level, pathb, memb
+    return level, pathb, memb, end_state
 
 
-def viterbi_chunked(z: Tensor, codebook: Tensor, trellis: Trellis, budget_bytes=2 << 30):
+def viterbi_chunked(z: Tensor, codebook: Tensor, trellis: Trellis,
+                    budget_bytes=2 << 30, start_state: Tensor | None = None):
     """Row-chunked Viterbi so backpointer memory stays under `budget_bytes`."""
     m, d = z.shape
     per_row = d * (trellis.n_states + 48)  # bp bool + members/costs
     chunk = max(16, min(m, budget_bytes // max(per_row, 1)))
     outs = [
-        _viterbi(z[i : i + chunk], codebook, trellis) for i in range(0, m, chunk)
+        _viterbi(z[i : i + chunk], codebook, trellis,
+                 None if start_state is None else start_state[i : i + chunk])
+        for i in range(0, m, chunk)
     ]
     return tuple(torch.cat(parts, dim=0) for parts in zip(*outs))
 
@@ -271,7 +290,7 @@ def tcq_codebook(bits: int, n_states: int, iters: int = 6, seed: int = 0) -> Ten
     gen = torch.Generator().manual_seed(seed)
     z = torch.randn(8, 8192, generator=gen)
     for _ in range(iters):
-        lc, _, _ = _viterbi(z, cb, trellis)
+        lc, _, _, _ = _viterbi(z, cb, trellis)
         flat_c, flat_z = lc.long().flatten(), z.flatten()
         sums = torch.zeros(cb.numel()).index_add_(0, flat_c, flat_z)
         cnts = torch.zeros(cb.numel()).index_add_(0, flat_c, torch.ones_like(flat_z))
@@ -297,40 +316,131 @@ def decode_levels(path_bits: Tensor, member_codes: Tensor, trellis: Trellis) -> 
 
 
 # ----------------------------------------------------------------------------
-# per-matrix quantization: equilibrate -> rotate -> TCQ -> pack + reconstruct
+# per-matrix quantization: equilibrate -> rotate -> TCQ (+error feedback)
+#                          -> pack + reconstruct
 # ----------------------------------------------------------------------------
-def quantize_matrix(w: Tensor, act_rms: Tensor, bits: int, n_states: int, seed: int):
-    """Returns (payload dict for the artifact, reconstructed fp32 weight)."""
+def _compute_device(n: int, d: int, device: str) -> torch.device:
+    """Run the encoder on the GPU when the working set comfortably fits."""
+    if device != "cuda" or not torch.cuda.is_available():
+        return torch.device("cpu")
+    free, _ = torch.cuda.mem_get_info()
+    # w + feedback factor + viterbi chunk headroom, all fp32.
+    need = 4 * (2 * n * d + 2 * d * d) + (256 << 20)
+    return torch.device("cuda") if need < 0.6 * free else torch.device("cpu")
+
+
+def quantize_matrix(w: Tensor, act_rms: Tensor, bits: int, n_states: int, seed: int,
+                    hessian: Tensor | None = None, ef_block: int = 128,
+                    device: str = "cpu", equil_alpha: float | None = None):
+    """Returns (payload dict for the artifact, reconstructed fp32 weight).
+
+    With ``hessian`` (the layer's input Gram ``E[x x^T]``), the trellis encode
+    runs with block-LDLQ error feedback: columns are coded in blocks of
+    ``ef_block`` (the Viterbi encoder chains its state across blocks, so the
+    packed stream is format-identical to the plain path) and each block's
+    Hessian-weighted error is fed forward into the not-yet-coded columns.
+    Per-row scales are then fixed at stored fp16 precision *before* encoding
+    so the feedback is consistent with the final reconstruction. The encoder
+    runs on the GPU when the working set fits (several times faster than the
+    CPU path); the reconstruction is always computed on the CPU so it stays
+    bit-identical to the artifact loader.
+    """
     w32 = w.detach().to(torch.float32).cpu()
     n, d = w32.shape
-    # quarter-power equilibration: s_j = (E[x_j^2] / ||W_:,j||^2)^(1/4).
-    # s is rounded to its stored fp16 precision *before* use, so the validated
-    # model is bit-identical to what the artifact reconstructs.
+    # Equilibration s_j = m_j^a / c_j^(1/2-a) with m_j = E[x_j^2] (act_rms =
+    # sqrt(m_j)), c_j = ||W_:,j||^2. a = 1/4 is the Prop-1 optimum for the
+    # feedback-free rotated quantizer, s_j = (m_j/c_j)^(1/4); with error
+    # feedback the optimum shifts toward pure column normalization (Prop 2),
+    # measured best at a = 1/8. s is rounded to its stored fp16 precision
+    # *before* use, so the validated model is bit-identical to what the
+    # artifact reconstructs.
+    if equil_alpha is None:
+        equil_alpha = 0.125 if hessian is not None else 0.25
     act = act_rms.to(torch.float32).cpu()
     act = act.clamp_min(max(0.05 * float(act.pow(2).mean().sqrt()), 1e-8))
     col_norm = w32.norm(dim=0)
     col_norm = col_norm.clamp_min(max(0.05 * float(col_norm.pow(2).mean().sqrt()), 1e-12))
-    s = (act / col_norm).sqrt().to(torch.float16).float()
+    s = (act.pow(2 * equil_alpha) / col_norm.pow(1 - 2 * equil_alpha))
+    s = s.to(torch.float16).float()
     w_eq = w32 * s[None, :]
     # seeded rotation (signs are STORED, so reproducibility never depends on RNG)
     block = _block_of(d)
     gen = torch.Generator().manual_seed(seed)
     signs = (torch.randint(0, 2, (d,), generator=gen, dtype=torch.int64) * 2 - 1).float()
     w_rot = rotate(w_eq, signs, block)
-    # per-row scale + trellis encode + one least-squares scale refit
+    cb = tcq_codebook(bits, n_states).to(torch.float16).float()  # stored precision
+    trellis = Trellis(n_states)
+    dev = _compute_device(n, d, device)
+    budget = 1 << 30 if dev.type == "cuda" else 2 << 30
+
     scales = w_rot.pow(2).mean(dim=1).sqrt()
     nz = scales > 0
     safe = torch.where(nz, scales, torch.ones_like(scales))
-    cb = tcq_codebook(bits, n_states).to(torch.float16).float()  # stored precision
-    level, pathb, memb = viterbi_chunked(w_rot / safe[:, None], cb, Trellis(n_states))
-    q = cb[level.long()]
-    num, den = (w_rot * q).sum(dim=1), (q * q).sum(dim=1)
-    refit = torch.where(den > 0, num / den.clamp_min(1e-30), safe)
-    safe = torch.where(refit > 0, refit, safe)
-    scales = torch.where(nz, safe, torch.zeros_like(safe)).to(torch.float16).float()
+
+    if hessian is None:
+        # plain path: trellis encode + one least-squares scale refit
+        wd, cbd = w_rot.to(dev), cb.to(dev)
+        safe_d = safe.to(dev)
+        level, pathb, memb, _ = viterbi_chunked(wd / safe_d[:, None], cbd, trellis, budget)
+        qd = cbd[level.long()]
+        num, den = (wd * qd).sum(dim=1), (qd * qd).sum(dim=1)
+        refit = torch.where(den > 0, num / den.clamp_min(1e-30), safe_d)
+        safe = torch.where(refit > 0, refit, safe_d).cpu()
+        level, pathb, memb = level.cpu(), pathb.cpu(), memb.cpu()
+        scales = torch.where(nz, safe, torch.zeros_like(safe)).to(torch.float16).float()
+    else:
+        # block-LDLQ over the trellis. Scales are frozen at stored fp16
+        # precision before the sweep: the feedback must see the exact
+        # reconstruction. NO scale refit here -- measured on SmolLM2-135M
+        # at 2 bits, refitting scales to feedback-compensated codes clips
+        # the codebook and the feedback amplifies the error (KL 2.24->4.19).
+        from turbopress.gptq import _hinv_cholesky
+        # H_z = R D^-1 H D^-1 R^T in the same rotated/equilibrated coordinates.
+        inv_s = 1.0 / s
+        h = hessian.to(torch.float32).cpu() * inv_s[:, None] * inv_s[None, :]
+        a = rotate(h, signs, block)
+        hz = rotate(a.transpose(0, 1).contiguous(), signs, block)
+        hz = (0.5 * (hz + hz.transpose(0, 1))).to(dev)
+        u, dead = _hinv_cholesky(hz, percdamp=0.01, dev=dev)
+        w0d, cbd = w_rot.to(dev).clone(), cb.to(dev)
+        if dead.any():
+            w0d[:, dead] = 0.0
+
+        def _fp16_safe(sc):
+            sc = sc.to(torch.float16).float()
+            return torch.where(sc > 0, sc, torch.ones_like(sc))
+
+        def _ef_sweep(safe_d):
+            wd = w0d.clone()
+            level = torch.empty(n, d, dtype=torch.uint8, device=dev)
+            pathb = torch.empty(n, d, dtype=torch.uint8, device=dev)
+            memb = torch.empty(n, d, dtype=torch.uint8, device=dev)
+            state = torch.zeros(n, dtype=torch.int64, device=dev)
+            inv_safe = (1.0 / safe_d)[:, None]
+            for i1 in range(0, d, ef_block):
+                i2 = min(i1 + ef_block, d)
+                lv, pb, mb, state = viterbi_chunked(
+                    wd[:, i1:i2] * inv_safe, cbd, trellis, budget, start_state=state
+                )
+                level[:, i1:i2], pathb[:, i1:i2], memb[:, i1:i2] = lv, pb, mb
+                if i2 < d:
+                    q_blk = safe_d[:, None] * cbd[lv.long()]
+                    err = torch.linalg.solve_triangular(
+                        u[i1:i2, i1:i2], wd[:, i1:i2] - q_blk, upper=True, left=False
+                    )
+                    wd[:, i2:] -= err @ u[i1:i2, i2:]
+            return level, pathb, memb
+
+        safe_d = _fp16_safe(safe.to(dev))
+        level, pathb, memb = _ef_sweep(safe_d)
+        level, pathb, memb = level.cpu(), pathb.cpu(), memb.cpu()
+        safe = safe_d.cpu()
+        scales = torch.where(nz, safe, torch.zeros_like(safe)).to(torch.float16).float()
+
     # reconstruct in the original basis: W ~= (scale * levels) rotated back, / s.
-    # All factors are already at stored fp16 precision, so this equals the
+    # Computed on the CPU from the packed-precision factors, so this equals the
     # loader's reconstruction exactly.
+    q = cb[level.long()]
     w_hat = rotate_inv(scales[:, None] * q, signs, block) / s[None, :]
     payload = {
         "n": n, "d": d, "block": block, "bits": bits, "n_states": n_states,
@@ -388,6 +498,48 @@ def collect_channel_stats(model, layers, batches, device):
         for h in handles:
             h.remove()
     return {k: (v / counts[k]).sqrt().cpu() for k, v in sums.items()}
+
+
+@torch.no_grad()
+def collect_block_hessians(model, block, batches, device):
+    """Input Gram ``E[x x^T]`` for every nn.Linear in ONE decoder block.
+
+    Collected per block (the calibration batches are replayed with hooks on
+    just this block) so peak memory is a handful of [d, d] fp32 matrices, not
+    the whole model's. Because the pipeline quantizes blocks in place as it
+    goes, replaying per block also means each block calibrates against the
+    *already-quantized* prefix -- the sequential-GPTQ setup. Grams are
+    accumulated on the activation device and returned on the CPU; an OOM on
+    the Gram falls back to CPU accumulation for that layer.
+    """
+    grams, counts, handles = {}, {}, []
+
+    def mk(key):
+        def hook(_m, inputs, _o):
+            x = inputs[0].detach().to(torch.float32).reshape(-1, inputs[0].shape[-1])
+            try:
+                g = x.T @ x
+            except torch.cuda.OutOfMemoryError:
+                torch.cuda.empty_cache()
+                x = x.cpu()
+                g = x.T @ x
+            if key in grams:
+                grams[key] += g.to(grams[key].device)
+            else:
+                grams[key] = g
+            counts[key] = counts.get(key, 0) + x.shape[0]
+        return hook
+
+    for name, mod in block.named_modules():
+        if isinstance(mod, nn.Linear):
+            handles.append(mod.register_forward_hook(mk(name)))
+    try:
+        for ids in batches:
+            model(input_ids=ids.to(device))
+    finally:
+        for h in handles:
+            h.remove()
+    return {k: (g / counts[k]).cpu() for k, g in grams.items()}
 
 
 @torch.no_grad()
@@ -682,6 +834,10 @@ def compress(cfg: dict | None = None) -> dict:
     tcq_codebook(bits, n_states)
 
     # -- quantize every decoder linear, in place --------------------------------
+    ef = bool(cfg["ERROR_FEEDBACK"])
+    if ef:
+        log.info("error feedback ON: block-LDLQ over the trellis "
+                 "(per-block Hessians, sequential-GPTQ calibration)")
     quantized: dict[str, dict] = {}
     quant_keys = set()
     total_w = total_bits = 0
@@ -689,6 +845,9 @@ def compress(cfg: dict | None = None) -> dict:
     done, t_q = 0, time.time()
     integrity_checked = False
     for i, block in enumerate(layers):
+        hessians = (
+            collect_block_hessians(model, block, calib_batches, device) if ef else {}
+        )
         for lname, mod in list(block.named_modules()):
             if not isinstance(mod, nn.Linear):
                 continue
@@ -696,6 +855,8 @@ def compress(cfg: dict | None = None) -> dict:
             payload, w_hat = quantize_matrix(
                 mod.weight, stats[f"{i}.{lname}"], bits, n_states,
                 seed=cfg["SEED"] + 7919 * i + zlib.crc32(lname.encode()) % 1000,
+                hessian=hessians.get(lname), device=device,
+                equil_alpha=None if cfg["EQUIL_ALPHA"] < 0 else cfg["EQUIL_ALPHA"],
             )
             if not integrity_checked:  # decode-from-packed must round-trip exactly
                 n_, d_ = payload["n"], payload["d"]
@@ -728,6 +889,9 @@ def compress(cfg: dict | None = None) -> dict:
                 el = time.time() - t_q
                 log.info(f"quantized {done}/{n_mats} matrices "
                          f"({el:.0f}s, eta {el / done * (n_mats - done):.0f}s)")
+        del hessians
+        if device == "cuda":
+            torch.cuda.empty_cache()
     bpw = total_bits / total_w
     log.info(f"quantized {done} linears | {total_w / 1e9:.2f}B weights @ "
              f"{bpw:.3f} bits/weight (incl. all overheads)")
@@ -752,10 +916,18 @@ def compress(cfg: dict | None = None) -> dict:
     extra = extra_state(model, quant_keys)
     meta = {
         "format_version": 1,
-        "pipeline": "rotate -> quarter-power equilibration -> TCQ (analytic codebook)",
+        "pipeline": (
+            "rotate -> quarter-power equilibration -> TCQ (analytic codebook)"
+            + (" -> block-LDLQ error feedback" if ef else "")
+        ),
         "model_id": cfg["MODEL_ID"], "bits": bits, "n_states": n_states,
         "generators": list(_TRELLIS_GENERATORS[n_states]),
         "bits_per_weight_total": round(bpw, 4), "seed": cfg["SEED"],
+        "error_feedback": ef,
+        "equil_alpha": (
+            cfg["EQUIL_ALPHA"] if cfg["EQUIL_ALPHA"] >= 0
+            else (0.125 if ef else 0.25)
+        ),
     }
     torch.save(
         {"meta": meta, "quantized": quantized, "extra_state": extra},
